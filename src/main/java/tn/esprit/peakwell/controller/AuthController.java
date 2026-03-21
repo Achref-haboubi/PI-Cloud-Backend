@@ -1,8 +1,8 @@
 package tn.esprit.peakwell.controller;
 
-import com.example.peakwellbackend.dto.LoginRequest;
-import com.example.peakwellbackend.dto.SignupRequest;
-import com.example.peakwellbackend.services.IAuthService;
+import tn.esprit.peakwell.dto.LoginRequest;
+import tn.esprit.peakwell.dto.SignupRequest;
+import tn.esprit.peakwell.services.IAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;

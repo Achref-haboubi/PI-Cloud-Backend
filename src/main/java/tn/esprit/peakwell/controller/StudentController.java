@@ -1,12 +1,12 @@
 package tn.esprit.peakwell.controller;
 
-import com.example.peakwellbackend.dto.StudentProfileRequest;
-import com.example.peakwellbackend.entities.Role;
-import com.example.peakwellbackend.entities.Student;
-import com.example.peakwellbackend.entities.User;
-import com.example.peakwellbackend.repository.userRepository;
-import com.example.peakwellbackend.security.JwtUtils;
-import com.example.peakwellbackend.services.IStudentService;
+import tn.esprit.peakwell.dto.StudentProfileRequest;
+import tn.esprit.peakwell.entities.Role;
+import tn.esprit.peakwell.entities.Student;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.userRepository;
+import tn.esprit.peakwell.security.JwtUtils;
+import tn.esprit.peakwell.services.IStudentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;

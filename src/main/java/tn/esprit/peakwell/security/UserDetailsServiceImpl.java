@@ -1,7 +1,7 @@
 package tn.esprit.peakwell.security;
 
-import com.example.peakwellbackend.entities.User;
-import com.example.peakwellbackend.repository.userRepository;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.userRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

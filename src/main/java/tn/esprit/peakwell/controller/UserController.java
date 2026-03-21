@@ -1,7 +1,7 @@
 package tn.esprit.peakwell.controller;
 
-import com.example.peakwellbackend.entities.User;
-import com.example.peakwellbackend.services.IUserService;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.services.IUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;

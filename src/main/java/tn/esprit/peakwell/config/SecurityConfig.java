@@ -1,7 +1,7 @@
-package com.example.peakwellbackend.config;
+package tn.esprit.peakwell.config;
 
-import com.example.peakwellbackend.security.JwtAuthFilter;
-import com.example.peakwellbackend.security.UserDetailsServiceImpl;
+import tn.esprit.peakwell.security.JwtAuthFilter;
+import tn.esprit.peakwell.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

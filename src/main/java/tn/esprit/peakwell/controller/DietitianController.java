@@ -1,8 +1,8 @@
 package tn.esprit.peakwell.controller;
 
-import com.example.peakwellbackend.dto.DietitianProfileRequest;
-import com.example.peakwellbackend.entities.Dietitian;
-import com.example.peakwellbackend.services.IDietitianService;
+import tn.esprit.peakwell.dto.DietitianProfileRequest;
+import tn.esprit.peakwell.entities.Dietitian;
+import tn.esprit.peakwell.services.IDietitianService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;

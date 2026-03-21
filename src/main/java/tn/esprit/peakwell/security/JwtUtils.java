@@ -1,6 +1,6 @@
 package tn.esprit.peakwell.security;
 
-import com.example.peakwellbackend.entities.User;
+import tn.esprit.peakwell.entities.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
