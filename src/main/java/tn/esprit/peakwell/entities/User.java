@@ -20,7 +20,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    //  VERY IMPORTANT: Link with Keycloak user
+    //  Link with Keycloak
     @Column(unique = true, nullable = false)
     String keycloakId;
 
@@ -29,16 +29,18 @@ public class User {
 
     String firstName;
     String lastName;
-    Integer age;
 
-    boolean profileCompleted;
+    //  Step after first login
+    @Column(nullable = false)
+    boolean profileCompleted = false;
 
+    @Temporal(TemporalType.TIMESTAMP)
     Date createdAt;
 
+    //  Automatically executed before INSERT
     @PrePersist
     public void prePersist() {
         this.createdAt = new Date();
-        this.profileCompleted = false;
     }
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)

@@ -1,6 +1,7 @@
 package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,13 +13,20 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.LoginRequest;
+import tn.esprit.peakwell.dto.RegisterRequest;
+import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.exception.AuthException;
+import tn.esprit.peakwell.repositories.UserRepository;
 
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService implements  IAuthService{
+
+    private final KeycloakService keycloakService;
+    @Autowired
+    UserRepository userRepository;
 
     @Value("${keycloak.server-url}")
     private String serverUrl;
@@ -76,6 +84,40 @@ public class AuthService implements  IAuthService{
         } catch (Exception e) {
 
             throw new AuthException("Authentication server error", 500);
+        }
+    }
+
+    @Override
+    public void register(RegisterRequest request) {
+
+        String keycloakId = null;
+
+        try {
+            //  Create user in Keycloak
+            keycloakId = keycloakService.createUser(request);
+
+            //  Save in DB
+            User user = new User();
+            user.setKeycloakId(keycloakId);
+            user.setEmail(request.getEmail());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
+
+            userRepository.save(user);
+
+        } catch (Exception e) {
+
+            //  If DB fails → rollback Keycloak
+            if (keycloakId != null) {
+                try {
+                    keycloakService.deleteUser(keycloakId);
+                } catch (Exception ex) {
+                    // log this, don't hide original error
+                    System.err.println("⚠️ Failed to rollback Keycloak user: " + ex.getMessage());
+                }
+            }
+
+            throw new RuntimeException("Registration failed: " + e.getMessage());
         }
     }
 }

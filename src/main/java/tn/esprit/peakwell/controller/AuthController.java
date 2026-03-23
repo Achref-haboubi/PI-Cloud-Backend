@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.LoginRequest;
+import tn.esprit.peakwell.dto.RegisterRequest;
 import tn.esprit.peakwell.exception.AuthException;
 import tn.esprit.peakwell.services.IAuthService;
 
@@ -27,5 +28,11 @@ public class AuthController {
         } catch (AuthException e) {
             return ResponseEntity.status(e.getStatus()).body(e.getMessage());
         }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        authService.register(request);
+        return ResponseEntity.ok("User registered. Check email for verification.");
     }
 }
