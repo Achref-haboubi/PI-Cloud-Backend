@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -17,6 +18,7 @@ public class Student {
     Long id;
 
     @OneToOne
+    @JsonIgnore
     @MapsId
     @JoinColumn(name = "id")
     User user;

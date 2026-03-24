@@ -8,4 +8,5 @@ public interface IAuthService {
 
     AuthResponse login(LoginRequest request);
     void register(RegisterRequest request);
+    String getCurrentUserId();
 }

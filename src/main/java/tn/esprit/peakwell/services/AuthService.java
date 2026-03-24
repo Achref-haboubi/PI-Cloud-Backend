@@ -1,12 +1,15 @@
 package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -113,11 +116,24 @@ public class AuthService implements  IAuthService{
                     keycloakService.deleteUser(keycloakId);
                 } catch (Exception ex) {
                     // log this, don't hide original error
-                    System.err.println("⚠️ Failed to rollback Keycloak user: " + ex.getMessage());
+                    System.err.println(" Failed to rollback Keycloak user: " + ex.getMessage());
                 }
             }
 
             throw new RuntimeException("Registration failed: " + e.getMessage());
         }
+    }
+
+    @Override
+    public String getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // Check if the principal is an instance of the security Jwt class
+        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
+            System.out.println("sub to get me: "+ jwt.getClaimAsString("sub"));
+            return jwt.getClaimAsString("sub"); // This will now work
+        }
+
+        throw new RuntimeException("No authenticated user found or token is invalid");
     }
 }
