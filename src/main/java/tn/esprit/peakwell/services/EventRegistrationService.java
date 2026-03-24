@@ -1,7 +1,5 @@
 package tn.esprit.peakwell.services;
 
-
-
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.entities.EventRegistration;
 import tn.esprit.peakwell.entities.SportEvent;
@@ -31,7 +29,7 @@ public class EventRegistrationService {
 
     public EventRegistration getRegistrationById(Long id) {
         return registrationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Regestration not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Registration not found with id: " + id));
     }
 
     public List<EventRegistration> getRegistrationsByStudentId(Long studentId) {
@@ -45,6 +43,10 @@ public class EventRegistrationService {
     public EventRegistration createRegistration(Long eventId, EventRegistration registration) {
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
+
+        if (event.getStatus() != EventStatus.OPEN) {
+            throw new IllegalArgumentException("This event is not open for registration.");
+        }
 
         registrationRepository.findByStudentIdAndEventId(registration.getStudentId(), eventId)
                 .ifPresent(existing -> {

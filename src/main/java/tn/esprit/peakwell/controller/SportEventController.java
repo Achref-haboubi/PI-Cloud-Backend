@@ -8,7 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.peakwell.entities.SportEvent;
 import tn.esprit.peakwell.services.SportEventService;
-
+import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -47,5 +52,30 @@ public class SportEventController {
     public ResponseEntity<String> deleteEvent(@PathVariable Long id) {
         sportEventService.deleteEvent(id);
         return ResponseEntity.ok("Event deleted successfully.");
+    }
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Fichier vide");
+            }
+
+            String uploadDir = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
+            File dir = new File(uploadDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path filePath = Paths.get(uploadDir, fileName);
+            Files.write(filePath, file.getBytes());
+
+            String imageUrl = "http://localhost:8090/peakwell/uploads/" + fileName;
+            return ResponseEntity.ok(imageUrl);
+
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erreur lors de l'upload de l'image");
+        }
     }
 }

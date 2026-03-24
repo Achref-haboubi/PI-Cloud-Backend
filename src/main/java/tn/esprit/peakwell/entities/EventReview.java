@@ -35,7 +35,7 @@ public class EventReview {
     @Column(name = "student_id", nullable = false)
     private Long studentId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnoreProperties({"registrations", "reviews"})
     private SportEvent event;
