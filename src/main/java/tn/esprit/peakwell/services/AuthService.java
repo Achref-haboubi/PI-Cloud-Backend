@@ -1,19 +1,17 @@
 package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.LoginRequest;
 import tn.esprit.peakwell.dto.RegisterRequest;
@@ -126,14 +124,37 @@ public class AuthService implements  IAuthService{
 
     @Override
     public String getCurrentUserId() {
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        // Check if the principal is an instance of the security Jwt class
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-            System.out.println("sub to get me: "+ jwt.getClaimAsString("sub"));
-            return jwt.getClaimAsString("sub"); // This will now work
+        //  No authentication at all
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "User not authenticated"
+            );
         }
 
-        throw new RuntimeException("No authenticated user found or token is invalid");
+        Object principal = authentication.getPrincipal();
+
+        //  Wrong principal type (not JWT)
+        if (!(principal instanceof Jwt jwt)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid authentication token"
+            );
+        }
+
+        //  Missing subject
+        String userId = jwt.getClaimAsString("sub");
+
+        if (userId == null || userId.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid token: subject missing"
+            );
+        }
+
+        return userId;
     }
 }

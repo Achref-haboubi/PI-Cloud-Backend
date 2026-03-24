@@ -23,10 +23,13 @@ public class Dietitian {
     @JoinColumn(name = "id")
     User user;
 
+    @Column(nullable = false)
+    boolean isActive = false;
     String specialization;
     String certification;
     String linkUrl;
     String imgUrl;
     Integer experienceYears;
     Double consultationPrice;
+
 }
