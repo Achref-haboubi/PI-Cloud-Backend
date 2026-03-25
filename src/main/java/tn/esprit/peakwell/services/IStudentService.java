@@ -8,4 +8,5 @@ import tn.esprit.peakwell.entities.User;
 public interface IStudentService {
 
      void createStudent(User user, ProfileRequest request);
+     void updateStudent(User user, ProfileRequest request);
 }

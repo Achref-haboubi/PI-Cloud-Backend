@@ -9,4 +9,5 @@ import tn.esprit.peakwell.entities.User;
 public interface IDietitianService {
     void createDietitian(User user, ProfileRequest request);
     Dietitian setDietitianActiveStatus(Long id, boolean active);
+    void updateDietitian(User user, ProfileRequest request);
 }

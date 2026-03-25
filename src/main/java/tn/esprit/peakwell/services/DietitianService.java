@@ -55,4 +55,57 @@ public class DietitianService implements IDietitianService{
 
         return dietitianRepository.save(dietitian);
     }
+
+    @Override
+    public void updateDietitian(User user, ProfileRequest request) {
+
+        try {
+
+            Dietitian dietitian = user.getDietitian();
+
+            if (dietitian == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dietitian profile not found");
+            }
+
+            if (request.getConsultationPrice() != null && request.getConsultationPrice() < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid price");
+            }
+
+            if (request.getSpecialization() != null) {
+                dietitian.setSpecialization(request.getSpecialization());
+            }
+
+            if (request.getCertification() != null) {
+                dietitian.setCertification(request.getCertification());
+            }
+
+            if (request.getLinkUrl() != null) {
+                dietitian.setLinkUrl(request.getLinkUrl());
+            }
+
+            if (request.getImgUrl() != null) {
+                dietitian.setImgUrl(request.getImgUrl());
+            }
+
+            if (request.getExperienceYears() != null) {
+                dietitian.setExperienceYears(request.getExperienceYears());
+            }
+
+            if (request.getConsultationPrice() != null) {
+                dietitian.setConsultationPrice(request.getConsultationPrice());
+            }
+
+            //  optional: re-approval
+            dietitian.setActive(false);
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Internal server error"
+            );
+        }
+    }
 }
