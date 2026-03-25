@@ -23,7 +23,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService implements  IAuthService{
+public class AuthService implements IAuthService{
 
     private final KeycloakService keycloakService;
     @Autowired
@@ -156,5 +156,10 @@ public class AuthService implements  IAuthService{
         }
 
         return userId;
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        keycloakService.forgotPassword(email);
     }
 }
