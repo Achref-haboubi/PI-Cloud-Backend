@@ -18,8 +18,9 @@ import tn.esprit.peakwell.dto.RegisterRequest;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.exception.AuthException;
 import tn.esprit.peakwell.repositories.UserRepository;
-
+import org.springframework.http.ResponseEntity;
 import java.util.Map;
+
 
 @Service
 @RequiredArgsConstructor
@@ -89,15 +90,14 @@ public class AuthService implements IAuthService{
     }
 
     @Override
-public void register(RegisterRequest request) {
+public ResponseEntity<?> register(RegisterRequest request) {
 
     String keycloakId = null;
 
     try {
-        // Create user in Keycloak
+
         keycloakId = keycloakService.createUser(request);
 
-        // Save in DB
         User user = new User();
         user.setKeycloakId(keycloakId);
         user.setEmail(request.getEmail());
@@ -106,39 +106,38 @@ public void register(RegisterRequest request) {
 
         userRepository.save(user);
 
+        return ResponseEntity.status(201).body(
+                Map.of("message", "User registered successfully")
+        );
+
     } catch (Exception e) {
 
-        // Rollback Keycloak if DB fails
+        e.printStackTrace();
+
+        // rollback
         if (keycloakId != null) {
             try {
                 keycloakService.deleteUser(keycloakId);
             } catch (Exception ex) {
-                System.err.println("Failed to rollback Keycloak user: " + ex.getMessage());
+                System.err.println("Rollback failed: " + ex.getMessage());
             }
         }
 
-        //  Smart error mapping
         String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
 
-        if (errorMessage.contains("already exists") || errorMessage.contains("401")) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED, // 401
-                    "User already exists"
-            );
+        if (errorMessage.contains("409") || errorMessage.contains("exists")) {
+            return ResponseEntity.status(409).body(Map.of("message", "User already exists"));
         }
 
-        if (errorMessage.contains("invalid") || errorMessage.contains("password")) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, // 400
-                    "Invalid registration data"
-            );
+        if (errorMessage.contains("401")) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
         }
 
-        //  Default → SERVER ERROR
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR, // 500
-                "Server error during registration"
-        );
+        if (errorMessage.contains("invalid")) {
+            return ResponseEntity.status(400).body(Map.of("message", "Invalid data"));
+        }
+
+        return ResponseEntity.status(500).body(Map.of("message", "Server error"));
     }
 }
 

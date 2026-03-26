@@ -26,7 +26,9 @@ public class KeycloakService implements IKeycloakService{
     @Value("${keycloak.client-id}")
     private String clientId;
 
-    public String createUser(RegisterRequest request) {
+   public String createUser(RegisterRequest request) {
+
+    try {
 
         System.out.println("TOKEN = " + keycloak.tokenManager().getAccessToken().getToken());
 
@@ -36,9 +38,8 @@ public class KeycloakService implements IKeycloakService{
         user.setUsername(request.getEmail());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
-        user.setEmailVerified(false); // important
+        user.setEmailVerified(false);
 
-        // password
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(request.getPassword());
@@ -46,25 +47,27 @@ public class KeycloakService implements IKeycloakService{
 
         user.setCredentials(List.of(credential));
 
-        // create user
         Response response = keycloak.realm(realm).users().create(user);
 
         if (response.getStatus() != 201) {
-            throw new RuntimeException("Error creating user in Keycloak");
+            String error = response.readEntity(String.class);
+            throw new RuntimeException("Keycloak error: " + response.getStatus() + " - " + error);
         }
 
-        // extract userId
         String location = response.getHeaderString("Location");
         String userId = location.substring(location.lastIndexOf("/") + 1);
 
-        // assign role
         assignRole(userId, request.getRole());
 
-        // send verification email
         keycloak.realm(realm).users().get(userId).sendVerifyEmail();
 
         return userId;
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new RuntimeException(e.getMessage()); // propagate error
     }
+}
 
     public void deleteUser(String userId) {
         keycloak.realm(realm)
