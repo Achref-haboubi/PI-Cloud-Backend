@@ -35,10 +35,16 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        authService.register(request);
-        return ResponseEntity.ok("User registered. Check email for verification.");
-    }
+public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    authService.register(request);
+
+    return ResponseEntity
+            .status(201) // CREATED
+            .body(Map.of(
+                    "status", 201,
+                    "message", "User registered successfully. Check your email for verification."
+            ));
+}
 
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody ForgotPasswordRequest request) {

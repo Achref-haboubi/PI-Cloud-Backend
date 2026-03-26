@@ -89,38 +89,58 @@ public class AuthService implements IAuthService{
     }
 
     @Override
-    public void register(RegisterRequest request) {
+public void register(RegisterRequest request) {
 
-        String keycloakId = null;
+    String keycloakId = null;
 
-        try {
-            //  Create user in Keycloak
-            keycloakId = keycloakService.createUser(request);
+    try {
+        // Create user in Keycloak
+        keycloakId = keycloakService.createUser(request);
 
-            //  Save in DB
-            User user = new User();
-            user.setKeycloakId(keycloakId);
-            user.setEmail(request.getEmail());
-            user.setFirstName(request.getFirstName());
-            user.setLastName(request.getLastName());
+        // Save in DB
+        User user = new User();
+        user.setKeycloakId(keycloakId);
+        user.setEmail(request.getEmail());
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
 
-            userRepository.save(user);
+        userRepository.save(user);
 
-        } catch (Exception e) {
+    } catch (Exception e) {
 
-            //  If DB fails → rollback Keycloak
-            if (keycloakId != null) {
-                try {
-                    keycloakService.deleteUser(keycloakId);
-                } catch (Exception ex) {
-                    // log this, don't hide original error
-                    System.err.println(" Failed to rollback Keycloak user: " + ex.getMessage());
-                }
+        // Rollback Keycloak if DB fails
+        if (keycloakId != null) {
+            try {
+                keycloakService.deleteUser(keycloakId);
+            } catch (Exception ex) {
+                System.err.println("Failed to rollback Keycloak user: " + ex.getMessage());
             }
-
-            throw new RuntimeException("Registration failed: " + e.getMessage());
         }
+
+        //  Smart error mapping
+        String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+
+        if (errorMessage.contains("already exists") || errorMessage.contains("401")) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, // 401
+                    "User already exists"
+            );
+        }
+
+        if (errorMessage.contains("invalid") || errorMessage.contains("password")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, // 400
+                    "Invalid registration data"
+            );
+        }
+
+        //  Default → SERVER ERROR
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR, // 500
+                "Server error during registration"
+        );
     }
+}
 
     @Override
     public String getCurrentUserId() {
