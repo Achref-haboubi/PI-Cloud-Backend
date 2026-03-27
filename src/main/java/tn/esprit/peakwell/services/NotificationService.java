@@ -100,13 +100,13 @@ public class NotificationService {
         "Your health score is critically low (" + Math.round(healthScore) + "/100). " +
           "Multiple health indicators need immediate attention. " +
           "Please book a consultation with your dietitian as soon as possible.",
-        "🚨", "/consultations", "Book Appointment Now"));
+        "🚨", "/dossier?tab=consultations", "Book Appointment Now"));
     } else if (healthScore < 50) {
       generated.add(createIfNotExists(profile, "HEALTH_ALERT", "HIGH",
         "⚠️ Health Score Declining",
         "Your health score has dropped to " + Math.round(healthScore) + "/100. " +
           "Consider scheduling a check-up to review your progress.",
-        "⚠️", "/consultations", "Schedule Check-up"));
+        "⚠️", "/dossier?tab=consultations", "Schedule Check-up"));
     }
 
     // ── 2. BMI Alert ───────────────────────────────
@@ -115,7 +115,7 @@ public class NotificationService {
         "⚖️ BMI in Obese Range",
         "Your current BMI is " + latest.getBmi() + " which is in the obese range. " +
           "Your dietitian can help adjust your nutrition plan.",
-        "⚖️", "/dossier", "View Health Dashboard"));
+        "⚖️", "/dossier?tab=dashboard", "View Health Dashboard"));
     }
 
     // ── 3. Blood Pressure Alert ────────────────────
@@ -124,13 +124,13 @@ public class NotificationService {
         "❤️ High Blood Pressure Detected",
         "Your systolic blood pressure is " + latest.getSystolic() + " mmHg (hypertension range). " +
           "Please consult your doctor immediately.",
-        "❤️", "/consultations", "Book Urgent Appointment"));
+        "❤️", "/dossier?tab=consultations", "Book Urgent Appointment"));
     } else if (latest.getSystolic() != null && latest.getSystolic() > 130) {
       generated.add(createIfNotExists(profile, "HEALTH_ALERT", "MEDIUM",
         "❤️ Elevated Blood Pressure",
         "Your blood pressure is elevated at " + latest.getSystolic() + "/" + latest.getDiastolic() + " mmHg. " +
           "Monitor closely and consider dietary changes.",
-        "❤️", "/dossier", "View Details"));
+        "❤️", "/dossier?tab=alerts", "View Details"));
     }
 
     // ── 4. Glucose Alert ───────────────────────────
@@ -139,13 +139,13 @@ public class NotificationService {
         "🩸 Glucose in Diabetic Range",
         "Your fasting glucose is " + latest.getGlucose() + " mg/dL which indicates diabetes. " +
           "Urgent consultation recommended.",
-        "🩸", "/consultations", "Book Appointment"));
+        "🩸", "/dossier?tab=consultations", "Book Appointment"));
     } else if (latest.getGlucose() != null && latest.getGlucose() > 100) {
       generated.add(createIfNotExists(profile, "HEALTH_ALERT", "MEDIUM",
         "🩸 Pre-diabetic Glucose Level",
         "Your glucose level is " + latest.getGlucose() + " mg/dL (pre-diabetic range). " +
           "Dietary adjustments recommended.",
-        "🩸", "/dossier", "Review Diet Plan"));
+        "🩸", "/dossier?tab=dashboard", "Review Diet Plan"));
     }
 
     // ── 5. Rapid Weight Change ─────────────────────
@@ -156,7 +156,7 @@ public class NotificationService {
           "⚖️ Rapid Weight Gain",
           "You've gained " + Math.round(weightDelta * 10.0) / 10.0 + " kg since your last measurement. " +
             "This could indicate fluid retention or dietary changes that need review.",
-          "⚖️", "/consultations", "Discuss with Dietitian"));
+          "⚖️", "/dossier?tab=consultations", "Discuss with Dietitian"));
       }
     }
 
@@ -169,7 +169,7 @@ public class NotificationService {
       generated.add(createIfNotExists(profile, "GOAL_UPDATE", "MEDIUM",
         "⏰ " + overdueGoals.size() + " Goal" + (overdueGoals.size() > 1 ? "s" : "") + " Overdue",
         "You have overdue health goals. Consider updating your targets or booking a consultation to reassess.",
-        "⏰", "/goals", "Review Goals"));
+        "⏰", "/dossier?tab=goals", "Review Goals"));
     }
 
     // ── 7. Goal Achieved — Celebration! ────────────
@@ -183,7 +183,7 @@ public class NotificationService {
         "🎉 Goal Achieved!",
         "Congratulations! You've achieved your " + g.getDirection() + " " + g.getMetric() + " goal " +
           "(" + g.getStartValue() + " → " + g.getTargetValue() + " " + g.getUnit() + "). Keep up the great work!",
-        "🎉", "/goals", "View Goals"));
+        "🎉", "/dossier?tab=goals", "View Goals"));
     }
 
     // ── 8. No recent entries ───────────────────────
@@ -194,7 +194,7 @@ public class NotificationService {
           "📊 Time to Log a Measurement",
           "It's been " + daysSince + " days since your last biometric entry. " +
             "Regular tracking helps your dietitian help you better.",
-          "📊", "/dossier", "Add Measurement"));
+          "📊", "/dossier?tab=add", "Add Measurement"));
       }
     }
 

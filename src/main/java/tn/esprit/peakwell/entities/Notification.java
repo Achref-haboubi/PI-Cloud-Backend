@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ public class Notification {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "profile_id")
   private MedicalProfile profile;
@@ -35,6 +37,7 @@ public class Notification {
 
   private String actionLabel;  // e.g. "Book Appointment"
 
+  @Column(name = "is_read")
   @Builder.Default
   private Boolean read = false;
 

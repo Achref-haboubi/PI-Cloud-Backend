@@ -24,7 +24,10 @@ public class Consultation {
   private LocalDateTime scheduledAt;
   private Integer durationMinutes;
   @Column(nullable = false) @Builder.Default
-  private String status = "UPCOMING";
+  private String status = "PENDING_APPROVAL";
+
+  @Column(columnDefinition = "TEXT")
+  private String rejectionReason;
 
   @Column(nullable = false)
   private String doctorName;

@@ -35,6 +35,7 @@ public class ConsultationResponse {
   private Map<String, Object> rating;
 
 
+  private String rejectionReason;
   private String patientName;
   private Boolean reminder24hSent;
   private Boolean reminder1hSent;

@@ -83,6 +83,22 @@ public class ConsultationController {
     return ResponseEntity.ok(consultService.saveRating(id, data));
   }
 
+  @GetMapping("/pending")
+  public ResponseEntity<List<ConsultationResponse>> getPending() {
+    return ResponseEntity.ok(consultService.getPending());
+  }
+
+  @PatchMapping("/{id}/confirm")
+  public ResponseEntity<ConsultationResponse> confirm(@PathVariable Long id) {
+    return ResponseEntity.ok(consultService.confirm(id));
+  }
+
+  @PatchMapping("/{id}/reject")
+  public ResponseEntity<ConsultationResponse> reject(@PathVariable Long id,
+                                                     @RequestBody Map<String, String> body) {
+    return ResponseEntity.ok(consultService.reject(id, body.getOrDefault("reason", "")));
+  }
+
   @GetMapping("/reminders")
   public ResponseEntity<List<Map<String, Object>>> getReminders() {
     return ResponseEntity.ok(consultService.getReminders());

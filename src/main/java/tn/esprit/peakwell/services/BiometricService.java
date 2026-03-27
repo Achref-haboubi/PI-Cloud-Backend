@@ -21,6 +21,7 @@ public class BiometricService {
 
     private final BiometricEntryRepository repository;
     private final MedicalProfileRepository profileRepository;
+    private final NotificationService notificationService;
 
   public List<BiometricResponse> getAll() {
         return repository.findAllByOrderByRecordedAtAsc()
@@ -45,7 +46,9 @@ public class BiometricService {
                 .profile(profile)
                 .build();
 
-        return toResponse(repository.save(entry));
+        BiometricResponse saved = toResponse(repository.save(entry));
+        notificationService.checkAndNotify(profile.getId());
+        return saved;
     }
 
     public BiometricResponse getLatest() {
