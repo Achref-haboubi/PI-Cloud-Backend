@@ -23,27 +23,14 @@ public class AuthController {
     IAuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    return authService.login(request);
+}
 
-        try {
-            AuthResponse response = authService.login(request);
-            return ResponseEntity.ok(response);
 
-        } catch (AuthException e) {
-            return ResponseEntity.status(e.getStatus()).body(e.getMessage());
-        }
-    }
-
-    @PostMapping("/register")
+   @PostMapping("/register")
 public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-    authService.register(request);
-
-    return ResponseEntity
-            .status(201) // CREATED
-            .body(Map.of(
-                    "status", 201,
-                    "message", "User registered successfully. Check your email for verification."
-            ));
+    return authService.register(request);
 }
 
     @PostMapping("/forgot-password")

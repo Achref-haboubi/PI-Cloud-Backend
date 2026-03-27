@@ -18,7 +18,7 @@ import tn.esprit.peakwell.dto.RegisterRequest;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.exception.AuthException;
 import tn.esprit.peakwell.repositories.UserRepository;
-import org.springframework.http.ResponseEntity;
+
 import java.util.Map;
 
 
@@ -45,49 +45,55 @@ public class AuthService implements IAuthService{
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
-    public AuthResponse login(LoginRequest request) {
+public ResponseEntity<?> login(LoginRequest request) {
 
-        String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+    String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("grant_type", "password");
-        body.add("client_id", clientId);
-        body.add("client_secret", clientSecret);
-        body.add("username", request.getEmail());
-        body.add("password", request.getPassword());
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "password");
+    body.add("client_id", clientId);
+    body.add("client_secret", clientSecret);
+    body.add("username", request.getEmail());
+    body.add("password", request.getPassword());
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<?> entity = new HttpEntity<>(body, headers);
+    HttpEntity<?> entity = new HttpEntity<>(body, headers);
 
-        try {
-            ResponseEntity<Map> response =
-                    restTemplate.postForEntity(url, entity, Map.class);
+    try {
+        ResponseEntity<Map> response =
+                restTemplate.postForEntity(url, entity, Map.class);
 
-            Map<String, Object> res = response.getBody();
+        Map<String, Object> res = response.getBody();
 
-            AuthResponse auth = new AuthResponse();
-            auth.setAccessToken((String) res.get("access_token"));
-            auth.setRefreshToken((String) res.get("refresh_token"));
-            auth.setExpiresIn((Integer) res.get("expires_in"));
+        AuthResponse auth = new AuthResponse();
+        auth.setAccessToken((String) res.get("access_token"));
+        auth.setRefreshToken((String) res.get("refresh_token"));
+        auth.setExpiresIn((Integer) res.get("expires_in"));
 
-            return auth;
+        return ResponseEntity.ok(auth);
 
-        } catch (org.springframework.web.client.HttpClientErrorException e) {
+    } catch (org.springframework.web.client.HttpClientErrorException e) {
 
-            //  IMPORTANT: check status code
-            if (e.getStatusCode().value() == 401) {
-                throw new AuthException("Invalid email or password", 401);
-            }
-
-            throw new AuthException("Client error from Keycloak", e.getStatusCode().value());
-
-        } catch (Exception e) {
-
-            throw new AuthException("Authentication server error", 500);
+        if (e.getStatusCode().value() == 401) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid email or password");
         }
+
+        return ResponseEntity
+                .status(e.getStatusCode())
+                .body("Client error from Keycloak");
+
+    } catch (Exception e) {
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Authentication server error");
     }
+}
+
 
     @Override
 public ResponseEntity<?> register(RegisterRequest request) {

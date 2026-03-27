@@ -26,6 +26,9 @@ public class KeycloakService implements IKeycloakService{
     @Value("${keycloak.client-id}")
     private String clientId;
 
+    @Value("${app.verify-email-redirect-url}")
+    private String verifyEmailRedirectUrl;
+
    public String createUser(RegisterRequest request) {
 
     try {
@@ -59,13 +62,16 @@ public class KeycloakService implements IKeycloakService{
 
         assignRole(userId, request.getRole());
 
-        keycloak.realm(realm).users().get(userId).sendVerifyEmail();
+        keycloak.realm(realm)
+        .users()
+        .get(userId)
+        .sendVerifyEmail(clientId, verifyEmailRedirectUrl);
 
         return userId;
 
     } catch (Exception e) {
         e.printStackTrace();
-        throw new RuntimeException(e.getMessage()); // propagate error
+        throw new RuntimeException(e.getMessage()); 
     }
 }
 
