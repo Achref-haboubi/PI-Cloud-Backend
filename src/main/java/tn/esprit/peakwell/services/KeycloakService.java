@@ -97,52 +97,52 @@ public class KeycloakService implements IKeycloakService{
     }
 
     @Override
-    public void forgotPassword(String email) {
+public void forgotPassword(String email) {
 
-        try {
+    try {
 
-            List<UserRepresentation> users = keycloak.realm(realm)
-                    .users()
-                    .search(email);
-
-            if (users.isEmpty()) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "User not found with this email"
-                );
-            }
-
-            String userId = users.get(0).getId();
-
-            keycloak.realm(realm)
-                    .users()
-                    .get(userId)
-                    .executeActionsEmail(
-                            clientId,
-                            "http://localhost:4200/auth/login",
-                            300,
-                            List.of("UPDATE_PASSWORD")
-                    );
-
-        } catch (jakarta.ws.rs.BadRequestException e) {
-
-            System.out.println(" KEYCLOAK 400 ERROR:");
-            System.out.println(e.getMessage());
-
-            if (e.getResponse() != null) {
-                try {
-                    String body = e.getResponse().readEntity(String.class);
-                    System.out.println(" Response body: " + body);
-                } catch (Exception ex) {
-                    System.out.println(" Cannot read response body");
-                }
-            }
-
+       
+        if (email == null || email.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Keycloak error: " + e.getMessage()
+                    "Email must not be null or empty"
             );
         }
-    }
 
+        List<UserRepresentation> users = keycloak.realm(realm)
+                .users()
+                .search(email, true); 
+
+        if (users.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User not found with this email"
+            );
+        }
+
+        String userId = users.get(0).getId();
+
+        keycloak.realm(realm)
+                .users()
+                .get(userId)
+                .executeActionsEmail(
+                        clientId,
+                        "http://localhost:4200/auth/login",
+                        300,
+                        List.of("UPDATE_PASSWORD")
+                );
+
+    } catch (ResponseStatusException ex) {
+        throw ex; 
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Internal server error while processing forgot password"
+        );
+    }
+}
 }
