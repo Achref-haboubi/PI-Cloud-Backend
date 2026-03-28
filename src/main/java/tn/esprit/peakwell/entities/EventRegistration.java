@@ -32,7 +32,7 @@ public class EventRegistration {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnoreProperties({"registrations", "reviews"})
-    private SportEvent event;
+      private SportEvent event;
 
     public EventRegistration() {
     }
