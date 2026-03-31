@@ -2,9 +2,6 @@ package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
 
-import java.io.IOException;
-import java.util.UUID;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,14 +9,12 @@ import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
-import java.io.File;
 
 
 @Service
 @RequiredArgsConstructor
 public class UserService implements IUserService{
 
-    private final RestaurantService restaurantService;
     private final AuthService authService;
     private final UserRepository userRepository;
     private final StudentService studentService;
@@ -29,9 +24,7 @@ public class UserService implements IUserService{
 
     
    @Override
-public void completeProfile(ProfileRequest request,
-                            MultipartFile image,
-                            MultipartFile certificate) {
+public void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate) {
 
     try {
 
@@ -48,7 +41,7 @@ public void completeProfile(ProfileRequest request,
                     HttpStatus.BAD_REQUEST, "Role is required");
         }
 
-        // 🔥 Upload files using NEW method (with folder structure)
+        //  Upload files using NEW method (with folder structure)
         String imageUrl = fileUploadService.uploadFile(image, role, "profile");
         String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
 
@@ -59,7 +52,7 @@ public void completeProfile(ProfileRequest request,
                         HttpStatus.BAD_REQUEST, "Student profile already completed");
             }
 
-            // ✅ Student needs profile image
+            //  Student needs profile image
             if (imageUrl == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Profile image is required");
@@ -76,7 +69,7 @@ public void completeProfile(ProfileRequest request,
                         HttpStatus.BAD_REQUEST, "Dietitian profile already completed");
             }
 
-            // ✅ Dietitian needs BOTH
+            //  Dietitian needs BOTH
             if (imageUrl == null || certificateUrl == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -88,19 +81,10 @@ public void completeProfile(ProfileRequest request,
 
             dietitianService.createDietitian(user, request);
 
-            // 🔥 disable account until admin validation
+            //  disable account until admin validation
             user.setEnabled(false);
 
-        } else if ("RESTAURANT".equals(role)) {
-
-            if (user.getRestaurant() != null && user.getRestaurant().isProfileCompleted()) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Restaurant profile already completed");
-            }
-
-            restaurantService.createRestaurant(user, request);
-
-        } else {
+        }  else {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Invalid role");
         }
@@ -180,22 +164,5 @@ public void completeProfile(ProfileRequest request,
     //     }
     // }
 
-
-    private String saveFile(MultipartFile file) throws IOException {
-
-    if (file == null || file.isEmpty()) return null;
-
-    String uploadDir = System.getProperty("user.dir") + "/uploads/";
-
-    File folder = new File(uploadDir);
-    if (!folder.exists()) folder.mkdirs();
-
-    String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-
-    File destination = new File(uploadDir + fileName);
-    file.transferTo(destination);
-
-    return "http://localhost:8080/uploads/" + fileName;
-}
 
 }

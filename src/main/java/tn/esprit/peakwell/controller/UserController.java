@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import tn.esprit.peakwell.dto.CurrentUserDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
@@ -37,21 +38,70 @@ public ResponseEntity<?> completeProfile(
 
     userService.completeProfile(request, image, certificate);
 
-    return ResponseEntity.ok("Profile completed successfully");
+    return ResponseEntity.ok(Map.of("message", "Profile completed successfully"));
 }
 
     
-    @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser() {
+@GetMapping("/me")
+public ResponseEntity<?> getCurrentUser() {
 
-        String keycloakId = authService.getCurrentUserId();
-         System.out.println("keycloak id : " + keycloakId);
+    String keycloakId = authService.getCurrentUserId();
 
-        User user = userRepository.findByKeycloakId(keycloakId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    User user = userRepository.findByKeycloakId(keycloakId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return ResponseEntity.ok(user);
+    //  Build DTO
+    CurrentUserDTO dto = mapToDTO(user);
+
+    //  allow if profile not completed
+    if (!dto.isProfileCompleted()) {
+        return ResponseEntity.ok(dto);
     }
+
+    //  block if completed but not enabled
+    if (!user.isEnabled()) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("message", "Account pending approval"));
+    }
+
+    return ResponseEntity.ok(dto);
+}
+
+private boolean isProfileCompleted(User user) {
+        if (user.getStudent() != null) {
+            return user.getStudent().isProfileCompleted();
+        }
+        if (user.getDietitian() != null) {
+            return user.getDietitian().isProfileCompleted();
+        }
+        return false;
+    }
+
+    private CurrentUserDTO mapToDTO(User user) {
+
+    String role = "";
+    boolean profileCompleted = false;
+
+    if (user.getStudent() != null) {
+        role = "STUDENT";
+        profileCompleted = user.getStudent().isProfileCompleted();
+    } 
+    else if (user.getDietitian() != null) {
+        role = "DIETITIAN";
+        profileCompleted = user.getDietitian().isProfileCompleted();
+    }
+
+    return new CurrentUserDTO(
+            user.getId(),
+            user.getEmail(),
+            user.getFirstName(),
+            user.getLastName(),
+            role,
+            profileCompleted,
+            user.isEnabled() 
+    );
+}
+
 
    
     @PutMapping("/update-profile")
