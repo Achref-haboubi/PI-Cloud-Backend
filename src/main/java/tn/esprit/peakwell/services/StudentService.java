@@ -3,6 +3,8 @@ package tn.esprit.peakwell.services;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import lombok.RequiredArgsConstructor;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.entities.Student;
 import tn.esprit.peakwell.entities.User;
@@ -10,30 +12,33 @@ import tn.esprit.peakwell.entities.User;
 @Service
 public class StudentService implements IStudentService {
 
+
     @Override
     public void createStudent(User user, ProfileRequest request) {
 
         Student student = user.getStudent();
 
-        //  If student does not exist → create
         if (student == null) {
             student = new Student();
             student.setUser(user);
         }
 
-        //  Update values (NOT create new)
         student.setHeight(request.getHeight());
         student.setWeight(request.getWeight());
         student.setActivityLevel(request.getActivityLevel());
         student.setGoal(request.getGoal());
+        student.setImgUrl(request.getImgUrl());
 
-        // BMI
+        // BMI calculation
         float heightMeters = request.getHeight() / 100;
         float bmi = (float) (request.getWeight() / (heightMeters * heightMeters));
         student.setBmi(Math.round(bmi * 100) / 100f);
 
+        student.setProfileCompleted(true);
+
         user.setStudent(student);
     }
+
 
     @Override
     public void updateStudent(User user, ProfileRequest request) {

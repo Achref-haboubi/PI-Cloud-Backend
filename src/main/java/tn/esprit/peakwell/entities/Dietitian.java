@@ -24,7 +24,8 @@ public class Dietitian {
     User user;
 
     @Column(nullable = false)
-    boolean isActive = false;
+    boolean profileCompleted = false;
+    
     String specialization;
     String certification;
     String linkUrl;

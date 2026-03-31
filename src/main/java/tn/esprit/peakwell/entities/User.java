@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 
 import java.util.Date;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -30,9 +32,6 @@ public class User {
     String firstName;
     String lastName;
 
-    //  Step after first login
-    @Column(nullable = false)
-    boolean profileCompleted = false;
 
     @Temporal(TemporalType.TIMESTAMP)
     Date createdAt;
@@ -43,9 +42,18 @@ public class User {
         this.createdAt = new Date();
     }
 
+    @Column(nullable = false)
+    boolean enabled = true; 
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
     Student student;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
     Dietitian dietitian;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
+    Restaurant restaurant;
 }

@@ -5,7 +5,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
@@ -23,6 +27,20 @@ public class UserController {
     private final UserRepository userRepository;
     private final UserService userService;
 
+
+    @PostMapping("/complete-profile")
+public ResponseEntity<?> completeProfile(
+        @ModelAttribute ProfileRequest request,
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @RequestPart(value = "certificate", required = false) MultipartFile certificate
+) {
+
+    userService.completeProfile(request, image, certificate);
+
+    return ResponseEntity.ok("Profile completed successfully");
+}
+
+    
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser() {
 
@@ -35,14 +53,7 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    @PostMapping("/complete-profile")
-    public ResponseEntity<?> completeProfile(@RequestBody ProfileRequest request) {
-
-        userService.completeProfile(request);
-
-        return ResponseEntity.ok("Profile completed successfully");
-    }
-
+   
     @PutMapping("/update-profile")
     public ResponseEntity<Map<String, Object>> updateProfile(@RequestBody ProfileRequest request) {
 
