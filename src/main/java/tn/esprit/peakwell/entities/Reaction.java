@@ -1,34 +1,29 @@
 package tn.esprit.peakwell.entities;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import lombok.*;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Comment {
-
+@Table(name = "reactions")
+public class Reaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Content is required")
-    private String content;
+    @Column(nullable = false)
+    private String type; // LIKE, LOVE, INSIGHTFUL, IDEA, BRAVO
 
-    @NotBlank(message = "Author is required")
-    private String author;
+    @Column(nullable = false)
+    private String userIdentifier;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "article_id", nullable = false)
+    private Article article;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @ManyToOne
-    @JoinColumn(name = "article_id", nullable = false)
-    @JsonBackReference
-    private Article article;
 
     @PrePersist
     protected void onCreate() {

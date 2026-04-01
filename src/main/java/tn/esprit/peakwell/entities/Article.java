@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.entities;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -36,7 +37,19 @@ public class Article {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Comment> comments;
+
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Reaction> reactions;
+
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Attachment> attachments;
+
+    @Column(nullable = true)
+    private String embedUrl;
 
     @PrePersist
     protected void onCreate() {

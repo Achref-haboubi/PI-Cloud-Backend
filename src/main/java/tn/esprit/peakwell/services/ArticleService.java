@@ -59,6 +59,10 @@ public class ArticleService {
             article.setImageUrl(articleDetails.getImageUrl());
         }
 
+        if (articleDetails.getEmbedUrl() != null) {
+            article.setEmbedUrl(articleDetails.getEmbedUrl());
+        }
+
         return articleRepository.save(article);
     }
 
@@ -86,13 +90,14 @@ public class ArticleService {
     }
 
     // 🔁 MAPPER Article → DTO
-    private ArticleDTO mapArticleToDTO(Article article) {
+    public ArticleDTO mapArticleToDTO(Article article) {
         return new ArticleDTO(
                 article.getId(),
                 article.getTitle(),
                 article.getContent(),
                 article.getAuthor(),
                 article.getImageUrl(),
+                article.getEmbedUrl(),
                 article.getCreatedAt(),
                 article.getUpdatedAt()
         );

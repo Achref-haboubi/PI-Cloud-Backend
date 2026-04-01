@@ -32,6 +32,7 @@ public class ArticleController {
             @RequestParam(value = "title") String title,
             @RequestParam(value = "content") String content,
             @RequestParam(value = "author") String author,
+            @RequestParam(value = "embedUrl", required = false) String embedUrl,
             @RequestParam(value = "image", required = false) MultipartFile image) throws IOException {
         
         String imageUrl = null;
@@ -44,7 +45,8 @@ public class ArticleController {
         article.setContent(content);
         article.setAuthor(author);
         article.setImageUrl(imageUrl);
-        
+        article.setEmbedUrl(embedUrl);
+
         return articleService.createArticle(article);
     }
 
@@ -67,6 +69,7 @@ public class ArticleController {
             @RequestParam(value = "title") String title,
             @RequestParam(value = "content") String content,
             @RequestParam(value = "author") String author,
+            @RequestParam(value = "embedUrl", required = false) String embedUrl,
             @RequestParam(value = "image", required = false) MultipartFile image) throws IOException {
         
         ArticleDTO existingArticle = articleService.getArticleById(id);
@@ -84,8 +87,10 @@ public class ArticleController {
         article.setContent(content);
         article.setAuthor(author);
         article.setImageUrl(imageUrl);
-        
-        return articleService.updateArticle(id, article);
+        article.setEmbedUrl(embedUrl);
+
+        Article updatedArticle = articleService.updateArticle(id, article);
+        return articleService.mapArticleToDTO(updatedArticle);  
     }
 
     // ✅ DELETE
