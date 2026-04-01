@@ -4,6 +4,10 @@ import tn.esprit.peakwell.entities.Article;
 import tn.esprit.peakwell.repositories.ArticleRepository;
 import tn.esprit.peakwell.dto.ArticleDTO;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.Resource;
@@ -26,27 +30,34 @@ public class ArticleService {
         this.articleRepository = articleRepository;
     }
 
-    // ✅ CREATE
+    // CREATE
     public Article createArticle(Article article) {
         return articleRepository.save(article);
     }
 
-    // ✅ GET ALL → DTO
-    public List<ArticleDTO> getAllArticles() {
+    //  GET ALL (Paginated) → Page<DTO>
+    public Page<ArticleDTO> getAllArticles(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return articleRepository.findAll(pageable)
+                .map(this::mapArticleToDTO);
+    }
+
+    //  GET ALL (Non-paginated) → List<DTO> [Backward compatibility]
+    public List<ArticleDTO> getAllArticlesAsList() {
         return articleRepository.findAll()
                 .stream()
                 .map(this::mapArticleToDTO)
                 .toList();
     }
 
-    // ✅ GET BY ID → DTO
+    //  GET BY ID → DTO
     public ArticleDTO getArticleById(Long id) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Article not found with id: " + id));
         return mapArticleToDTO(article);
     }
 
-    // ✅ UPDATE
+    //  UPDATE
     public Article updateArticle(Long id, Article articleDetails) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Article not found with id: " + id));
@@ -66,14 +77,14 @@ public class ArticleService {
         return articleRepository.save(article);
     }
 
-    // ✅ DELETE
+    //  DELETE
     public void deleteArticle(Long id) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Article not found with id: " + id));
         articleRepository.delete(article);
     }
 
-    // ✅ GET BY AUTHOR → DTO
+    //  GET BY AUTHOR → DTO
     public List<ArticleDTO> getArticlesByAuthor(String author) {
         return articleRepository.findByAuthor(author)
                 .stream()
@@ -81,7 +92,7 @@ public class ArticleService {
                 .toList();
     }
 
-    // ✅ GET BY TITLE CONTAINING → DTO
+    //  GET BY TITLE CONTAINING → DTO
     public List<ArticleDTO> searchArticlesByTitle(String title) {
         return articleRepository.findByTitleContaining(title)
                 .stream()
@@ -89,7 +100,7 @@ public class ArticleService {
                 .toList();
     }
 
-    // 🔁 MAPPER Article → DTO
+    //  MAPPER Article → DTO
     public ArticleDTO mapArticleToDTO(Article article) {
         return new ArticleDTO(
                 article.getId(),
@@ -103,7 +114,7 @@ public class ArticleService {
         );
     }
 
-    // ✅ SAVE IMAGE
+    // SAVE IMAGE
     public String saveImage(MultipartFile file) throws IOException {
         Path uploadsPath = Paths.get(UPLOAD_DIR);
         
@@ -124,7 +135,7 @@ public class ArticleService {
         return uniqueFileName;
     }
 
-    // ✅ DELETE IMAGE
+    //  DELETE IMAGE
     public void deleteImage(String filename) {
         try {
             Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
@@ -134,7 +145,7 @@ public class ArticleService {
         }
     }
 
-    // ✅ GET IMAGE AS RESOURCE
+    //  GET IMAGE AS RESOURCE
     public Resource getImageAsResource(String filename) throws IOException {
         Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
         return new UrlResource(filePath.toUri());

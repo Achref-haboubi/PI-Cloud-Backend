@@ -4,6 +4,7 @@ import tn.esprit.peakwell.entities.Article;
 import tn.esprit.peakwell.dto.ArticleDTO;
 import tn.esprit.peakwell.services.ArticleService;
 
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.Resource;
@@ -26,7 +27,7 @@ public class ArticleController {
         this.articleService = articleService;
     }
 
-    // ✅ CREATE
+    //  CREATE
     @PostMapping
     public Article createArticle(
             @RequestParam(value = "title") String title,
@@ -50,19 +51,21 @@ public class ArticleController {
         return articleService.createArticle(article);
     }
 
-    // ✅ GET ALL → DTO
+    //  GET ALL (Paginated) → Page<ArticleDTO>
     @GetMapping
-    public List<ArticleDTO> getAllArticles() {
-        return articleService.getAllArticles();
+    public ResponseEntity<Page<ArticleDTO>> getAllArticles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "3") int size) {
+        return ResponseEntity.ok(articleService.getAllArticles(page, size));
     }
 
-    // ✅ GET BY ID → DTO
+    //  GET BY ID → DTO
     @GetMapping("/{id}")
     public ArticleDTO getArticle(@PathVariable Long id) {
         return articleService.getArticleById(id);
     }
 
-    // ✅ UPDATE
+    //  UPDATE
     @PutMapping("/{id}")
     public Article updateArticle(
             @PathVariable Long id,
@@ -93,7 +96,7 @@ public class ArticleController {
         return articleService.mapArticleToDTO(updatedArticle);  
     }
 
-    // ✅ DELETE
+    //  DELETE
     @DeleteMapping("/{id}")
     public void deleteArticle(@PathVariable Long id) {
         ArticleDTO article = articleService.getArticleById(id);
@@ -103,19 +106,19 @@ public class ArticleController {
         articleService.deleteArticle(id);
     }
 
-    // ✅ GET BY AUTHOR → DTO
+    //  GET BY AUTHOR → DTO
     @GetMapping("/author/{author}")
     public List<ArticleDTO> getArticlesByAuthor(@PathVariable String author) {
         return articleService.getArticlesByAuthor(author);
     }
 
-    // ✅ SEARCH BY TITLE → DTO
+    //  SEARCH BY TITLE → DTO
     @GetMapping("/search/{title}")
     public List<ArticleDTO> searchArticlesByTitle(@PathVariable String title) {
         return articleService.searchArticlesByTitle(title);
     }
 
-    // ✅ SERVE IMAGES
+    //  SERVE IMAGES
     @GetMapping("/images/{filename}")
     public ResponseEntity<Resource> getImage(@PathVariable String filename) throws IOException {
         Resource resource = articleService.getImageAsResource(filename);
