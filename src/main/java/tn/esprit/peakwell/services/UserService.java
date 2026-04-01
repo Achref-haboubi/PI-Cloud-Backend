@@ -7,8 +7,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
+
 
 
 @Service
@@ -47,7 +50,7 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
 
         if ("STUDENT".equals(role)) {
 
-            if (user.getStudent() != null && user.getStudent().isProfileCompleted()) {
+            if (user.getStudent() != null && user.isProfileCompleted()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Student profile already completed");
             }
@@ -64,7 +67,7 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
 
         } else if ("DIETITIAN".equals(role)) {
 
-            if (user.getDietitian() != null && user.getDietitian().isProfileCompleted()) {
+            if (user.getDietitian() != null && user.isProfileCompleted()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Dietitian profile already completed");
             }
@@ -83,6 +86,7 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
 
             //  disable account until admin validation
             user.setEnabled(false);
+            user.setProfileCompleted(true);
 
         }  else {
             throw new ResponseStatusException(
@@ -103,6 +107,44 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
         );
     }
 }
+
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfile getCurrentUserProfile() {
+
+        //  Get current user
+        String keycloakId = authService.getCurrentUserId();
+
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        //  Basic mapping
+        UserProfile profile = new UserProfile();
+        profile.setId(user.getId());
+        profile.setEmail(user.getEmail());
+        profile.setFirstName(user.getFirstName());
+        profile.setLastName(user.getLastName());
+        profile.setRole(user.getRole().toString());
+        profile.setProfileCompleted(user.isProfileCompleted());
+
+        //  Delegate to services
+        if (user.getRole().toString().equals("STUDENT")) {
+            profile.setStudentProfile(studentService.getStudentProfile(user));
+        }
+
+        if (user.getRole().toString().equals("DIETITIAN")) {
+            profile.setDietitianProfile(dietitianService.getDietitianProfile(user));
+        }
+
+        return profile;
+    }
+
+
+
+
+
 
 
     @Override

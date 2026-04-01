@@ -6,6 +6,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import lombok.RequiredArgsConstructor;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.StudentProfile;
 import tn.esprit.peakwell.entities.Student;
 import tn.esprit.peakwell.entities.User;
 
@@ -34,7 +35,6 @@ public class StudentService implements IStudentService {
         float bmi = (float) (request.getWeight() / (heightMeters * heightMeters));
         student.setBmi(Math.round(bmi * 100) / 100f);
 
-        student.setProfileCompleted(true);
 
         user.setStudent(student);
     }
@@ -93,4 +93,22 @@ public class StudentService implements IStudentService {
         }
     }
 
+    @Override
+    public StudentProfile getStudentProfile(User user) {
+
+        Student student = user.getStudent();
+
+        if (student == null) {
+            return null;
+        }
+
+        StudentProfile sp = new StudentProfile();
+        sp.setWeight(student.getWeight() != null ? student.getWeight().doubleValue() : null);
+        sp.setHeight(student.getHeight() != null ? student.getHeight().doubleValue() : null);
+        sp.setActivityLevel(student.getActivityLevel());
+        sp.setGoal(student.getGoal());
+        sp.setImageUrl(student.getImgUrl());
+
+        return sp;
+    }
 }

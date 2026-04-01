@@ -15,8 +15,8 @@ import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.LoginRequest;
 import tn.esprit.peakwell.dto.RegisterRequest;
+import tn.esprit.peakwell.entities.Role;
 import tn.esprit.peakwell.entities.User;
-import tn.esprit.peakwell.exception.AuthException;
 import tn.esprit.peakwell.repositories.UserRepository;
 
 import java.util.Map;
@@ -109,6 +109,7 @@ public ResponseEntity<?> register(RegisterRequest request) {
         user.setEmail(request.getEmail());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRole(Role.valueOf(request.getRole()));
 
         userRepository.save(user);
 

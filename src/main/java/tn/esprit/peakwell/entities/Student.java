@@ -23,8 +23,6 @@ public class Student {
     @JoinColumn(name = "id")
     User user;
     
-    @Column(nullable = false)
-    boolean profileCompleted = false;
 
     Float height;
     Float weight;

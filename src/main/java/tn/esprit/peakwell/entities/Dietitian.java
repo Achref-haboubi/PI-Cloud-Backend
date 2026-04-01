@@ -23,8 +23,6 @@ public class Dietitian {
     @JoinColumn(name = "id")
     User user;
 
-    @Column(nullable = false)
-    boolean profileCompleted = false;
     
     String specialization;
     String certification;

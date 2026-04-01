@@ -42,8 +42,14 @@ public class User {
         this.createdAt = new Date();
     }
 
+    @Enumerated(EnumType.STRING)
+    Role role;
+
     @Column(nullable = false)
     boolean enabled = true; 
+
+    @Column(nullable = false)
+    boolean profileCompleted = false;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore

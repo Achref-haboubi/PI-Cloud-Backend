@@ -4,10 +4,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import tn.esprit.peakwell.dto.DietitianProfile;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.entities.Dietitian;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.DietitianRepository;
+
+import lombok.RequiredArgsConstructor;
+import tn.esprit.peakwell.services.DietitianService;
 
 @Service
 public class DietitianService implements IDietitianService{
@@ -32,9 +37,27 @@ public class DietitianService implements IDietitianService{
         dietitian.setExperienceYears(request.getExperienceYears());
         dietitian.setConsultationPrice(request.getConsultationPrice());
 
-        dietitian.setProfileCompleted(true);
-
         user.setDietitian(dietitian);
+    }
+
+        @Override
+    public DietitianProfile getDietitianProfile(User user) {
+
+        Dietitian dietitian = user.getDietitian();
+
+        if (dietitian == null) {
+            return null;
+        }
+
+        DietitianProfile dp = new DietitianProfile();
+        dp.setSpecialization(dietitian.getSpecialization());
+        dp.setExperienceYears(dietitian.getExperienceYears());
+        dp.setConsultationPrice(dietitian.getConsultationPrice());
+        dp.setLinkUrl(dietitian.getLinkUrl());
+        dp.setImageUrl(dietitian.getImgUrl());
+        dp.setCertificateUrl(dietitian.getCertification());
+
+        return dp;
     }
 
     @Override

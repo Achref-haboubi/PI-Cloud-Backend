@@ -8,10 +8,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import tn.esprit.peakwell.dto.CurrentUserDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 import tn.esprit.peakwell.services.AuthService;
@@ -67,12 +67,34 @@ public ResponseEntity<?> getCurrentUser() {
     return ResponseEntity.ok(dto);
 }
 
+ @GetMapping("/profile")
+    public ResponseEntity<?> getUserProfile() {
+        try {
+
+            UserProfile profile = userService.getCurrentUserProfile();
+            return ResponseEntity.ok(profile);
+
+        } catch (RuntimeException e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(e.getMessage());
+
+        } catch (Exception e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Internal server error");
+
+        }
+    }
+
 private boolean isProfileCompleted(User user) {
         if (user.getStudent() != null) {
-            return user.getStudent().isProfileCompleted();
+            return user.isProfileCompleted();
         }
         if (user.getDietitian() != null) {
-            return user.getDietitian().isProfileCompleted();
+            return user.isProfileCompleted();
         }
         return false;
     }
@@ -84,11 +106,11 @@ private boolean isProfileCompleted(User user) {
 
     if (user.getStudent() != null) {
         role = "STUDENT";
-        profileCompleted = user.getStudent().isProfileCompleted();
+        profileCompleted = user.isProfileCompleted();
     } 
     else if (user.getDietitian() != null) {
         role = "DIETITIAN";
-        profileCompleted = user.getDietitian().isProfileCompleted();
+        profileCompleted = user.isProfileCompleted();
     }
 
     return new CurrentUserDTO(

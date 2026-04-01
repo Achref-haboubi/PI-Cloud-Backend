@@ -7,11 +7,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.ForgotPasswordRequest;
 import tn.esprit.peakwell.dto.LoginRequest;
 import tn.esprit.peakwell.dto.RegisterRequest;
-import tn.esprit.peakwell.exception.AuthException;
 import tn.esprit.peakwell.services.IAuthService;
 
 import java.util.Map;
