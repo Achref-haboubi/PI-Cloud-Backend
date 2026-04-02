@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
@@ -23,8 +24,8 @@ public class UserService implements IUserService{
     private final StudentService studentService;
     private final DietitianService dietitianService;
     private final IFileUploadService fileUploadService;
+    private final KeycloakService keycloakService;
    
-
     
    @Override
 public void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate) {
@@ -108,8 +109,6 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
     }
 }
 
-
-
     @Override
     @Transactional(readOnly = true)
     public UserProfile getCurrentUserProfile() {
@@ -142,69 +141,88 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
     }
 
 
-
-
-
-
-
     @Override
-    public User updateProfile(ProfileRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateProfile'");
+public void updateProfile(UpdateProfileRequest request, MultipartFile image, MultipartFile certificate) {
+
+    try {
+
+        String keycloakId = authService.getCurrentUserId();
+
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found"));
+
+        String role = user.getRole().name(); // role already exists
+
+       
+        boolean nameUpdated = false;
+
+        if (request.getFirstName() != null) {
+            user.setFirstName(request.getFirstName());
+            nameUpdated = true;
+        }
+
+        if (request.getLastName() != null) {
+            user.setLastName(request.getLastName());
+            nameUpdated = true;
+        }
+
+        if (nameUpdated) {
+            keycloakService.updateUserNames(
+                    keycloakId,
+                    user.getFirstName(),
+                    user.getLastName()
+            );
+        }
+
+    
+        String imageUrl = fileUploadService.uploadFile(image, role, "profile");
+        String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
+
+        // inject into request (like completeProfile)
+        if (imageUrl != null) {
+            request.setImgUrl(imageUrl);
+        }
+
+        if (certificateUrl != null) {
+            request.setCertification(certificateUrl);
+        }
+
+        if ("STUDENT".equals(role)) {
+
+            if (user.getStudent() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Student profile not found");
+            }
+
+            studentService.updateStudentProfile(user, request);
+
+        } else if ("DIETITIAN".equals(role)) {
+
+            if (user.getDietitian() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Dietitian profile not found");
+            }
+
+            dietitianService.updateDietitianProfile(user, request);
+
+        } else {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid role");
+        }
+
+        userRepository.save(user);
+
+    } catch (ResponseStatusException ex) {
+        throw ex;
+
+    } catch (Exception ex) {
+        ex.printStackTrace();
+
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Something went wrong while updating profile"
+        );
     }
-
-    // @Override
-    // public User updateProfile(ProfileRequest request) {
-
-    //     try {
-
-    //         String keycloakId = authService.getCurrentUserId(); //  may throw 401
-
-    //         User user = userRepository.findByKeycloakId(keycloakId)
-    //                 .orElseThrow(() ->
-    //                         new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
-    //                 );
-
-    //         //  profile not completed
-    //         if (!user.isProfileCompleted()) {
-    //             throw new ResponseStatusException(
-    //                     HttpStatus.BAD_REQUEST,
-    //                     "Complete profile first"
-    //             );
-    //         }
-
-    //         //  block inactive dietitian
-    //         if (user.getDietitian() != null && Boolean.FALSE.equals(user.getDietitian().isActive())) {
-    //             throw new ResponseStatusException(
-    //                     HttpStatus.FORBIDDEN,
-    //                     "Account pending admin approval"
-    //             );
-    //         }
-
-    //         //  role-based update
-    //         if (user.getStudent() != null) {
-    //             studentService.updateStudent(user, request);
-    //         } else if (user.getDietitian() != null) {
-    //             dietitianService.updateDietitian(user, request);
-    //         } else {
-    //             throw new ResponseStatusException(
-    //                     HttpStatus.BAD_REQUEST,
-    //                     "No profile found"
-    //             );
-    //         }
-
-    //         return userRepository.save(user);
-
-    //     } catch (ResponseStatusException ex) {
-    //         throw ex; // keep business errors
-
-    //     } catch (Exception ex) {
-    //         throw new ResponseStatusException(
-    //                 HttpStatus.INTERNAL_SERVER_ERROR,
-    //                 "Internal server error"
-    //         );
-    //     }
-    // }
-
-
+}
 }

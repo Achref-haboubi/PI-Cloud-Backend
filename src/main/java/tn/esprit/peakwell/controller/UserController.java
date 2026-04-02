@@ -7,10 +7,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.MediaType;
 
 
 import tn.esprit.peakwell.dto.CurrentUserDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
@@ -89,15 +91,18 @@ public ResponseEntity<?> getCurrentUser() {
         }
     }
 
-private boolean isProfileCompleted(User user) {
-        if (user.getStudent() != null) {
-            return user.isProfileCompleted();
-        }
-        if (user.getDietitian() != null) {
-            return user.isProfileCompleted();
-        }
-        return false;
-    }
+    @PatchMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<?> updateProfile(
+        @ModelAttribute UpdateProfileRequest request,
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @RequestPart(value = "certificate", required = false) MultipartFile certificate
+) {
+
+    userService.updateProfile(request, image, certificate);
+
+    return ResponseEntity.ok("Profile updated successfully");
+}
+
 
     private CurrentUserDTO mapToDTO(User user) {
 
@@ -126,31 +131,4 @@ private boolean isProfileCompleted(User user) {
 
 
    
-    @PutMapping("/update-profile")
-    public ResponseEntity<Map<String, Object>> updateProfile(@RequestBody ProfileRequest request) {
-
-        try {
-            User user = userService.updateProfile(request);
-
-            Map<String, Object> response = Map.of(
-                    "status", HttpStatus.OK.value(),
-                    "message", "Profile updated successfully",
-                    "data", user
-            );
-
-            return ResponseEntity.status(HttpStatus.OK).body(response);
-
-        } catch (ResponseStatusException ex) {
-            throw ex; // keep existing handled errors (400, 403, etc.)
-
-        } catch (Exception ex) {
-
-            Map<String, Object> response = Map.of(
-                    "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                    "error", "Internal server error"
-            );
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
     }
-}

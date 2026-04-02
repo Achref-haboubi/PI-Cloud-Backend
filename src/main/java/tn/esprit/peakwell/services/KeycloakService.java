@@ -145,4 +145,52 @@ public void forgotPassword(String email) {
         );
     }
 }
+
+
+
+  @Override
+public void updateUserNames(String userId, String firstName, String lastName) {
+
+    try {
+
+        UserRepresentation user = keycloak.realm(realm)
+                .users()
+                .get(userId)
+                .toRepresentation();
+
+        if (user == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User not found in Keycloak"
+            );
+        }
+
+        // 🔹 Update only if not null (PATCH behavior)
+        if (firstName != null) {
+            user.setFirstName(firstName);
+        }
+
+        if (lastName != null) {
+            user.setLastName(lastName);
+        }
+
+        keycloak.realm(realm)
+                .users()
+                .get(userId)
+                .update(user);
+
+    } catch (ResponseStatusException ex) {
+        throw ex;
+
+    } catch (Exception e) {
+        e.printStackTrace();
+
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to update user in Keycloak"
+        );
+    }
+}
+
+
 }
