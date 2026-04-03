@@ -49,22 +49,22 @@ public class EventReviewService {
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
 
-        // ✅ l’événement doit être terminé
+        //  l’événement doit être terminé
         if (event.getStatus() != EventStatus.FINISHED) {
             throw new IllegalArgumentException("Review is allowed only after event completion.");
         }
 
-        // ✅ l’étudiant doit être inscrit
+        //  l’étudiant doit être inscrit
         EventRegistration registration = registrationRepository
                 .findByStudentIdAndEventId(review.getStudentId(), eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Student did not register for this event."));
 
-        // ✅ il doit avoir vraiment participé
+        //  il doit avoir vraiment participé
         if (registration.getStatus() != RegistrationStatus.ATTENDED) {
             throw new IllegalArgumentException("Only attended students can review this event.");
         }
 
-        // ✅ empêcher double review
+        //  empêcher double review
         reviewRepository.findByStudentIdAndEventId(review.getStudentId(), eventId)
                 .ifPresent(existing -> {
                     throw new IllegalArgumentException("This student already reviewed this event.");
