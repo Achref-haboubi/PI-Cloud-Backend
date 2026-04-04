@@ -42,6 +42,11 @@ public class BiometricController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/profile/{profileId}")
+    public ResponseEntity<List<BiometricResponse>> getByProfileId(@PathVariable Long profileId) {
+        return ResponseEntity.ok(biometricService.getByProfileId(profileId));
+    }
+
     @GetMapping("/alerts")
     public ResponseEntity<List<HealthAlertDto>> getAlerts() {
         return ResponseEntity.ok(biometricService.getAlerts());

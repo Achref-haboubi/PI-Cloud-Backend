@@ -57,6 +57,11 @@ public class BiometricService {
                 .orElse(null);
     }
 
+    public List<BiometricResponse> getByProfileId(Long profileId) {
+        return repository.findAllByProfileIdOrderByRecordedAtAsc(profileId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     public void deleteEntry(Long id) {
         repository.deleteById(id);
     }

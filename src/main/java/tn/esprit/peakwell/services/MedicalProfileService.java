@@ -66,6 +66,10 @@ public class MedicalProfileService {
         return toResponse(repository.save(profile));
     }
 
+    public List<MedicalProfileResponse> getAllProfiles() {
+        return repository.findAll().stream().map(this::toResponse).toList();
+    }
+
     public MedicalProfileResponse getProfileByStudent(Long studentId) {
         return repository.findByStudentId(studentId).map(this::toResponse).orElse(null);
     }

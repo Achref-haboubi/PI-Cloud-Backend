@@ -34,6 +34,12 @@ public class MedicalProfileController {
         return ResponseEntity.ok(profileService.saveProfile(request));
     }
 
+    /** GET /api/profile/all — fetch all medical profiles (nutritionist view) */
+    @GetMapping("/all")
+    public ResponseEntity<List<MedicalProfileResponse>> getAllProfiles() {
+        return ResponseEntity.ok(profileService.getAllProfiles());
+    }
+
     /** GET /api/profile/by-student/{studentId} — fetch the profile belonging to a student */
     @GetMapping("/by-student/{studentId}")
     public ResponseEntity<MedicalProfileResponse> getByStudent(@PathVariable Long studentId) {
