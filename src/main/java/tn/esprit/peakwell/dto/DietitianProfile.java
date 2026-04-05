@@ -11,6 +11,5 @@ public class DietitianProfile {
     Integer experienceYears;
     Double consultationPrice;
     String linkUrl;
-    String imageUrl;
     String certificateUrl;
 }

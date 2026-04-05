@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.MediaType;
 
 
@@ -19,6 +18,7 @@ import tn.esprit.peakwell.repositories.UserRepository;
 import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.UserService;
 
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -32,11 +32,7 @@ public class UserController {
 
 
     @PostMapping("/complete-profile")
-public ResponseEntity<?> completeProfile(
-        @ModelAttribute ProfileRequest request,
-        @RequestPart(value = "image", required = false) MultipartFile image,
-        @RequestPart(value = "certificate", required = false) MultipartFile certificate
-) {
+public ResponseEntity<?> completeProfile( @ModelAttribute ProfileRequest request, @RequestPart(value = "image", required = false) MultipartFile image,@RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
     userService.completeProfile(request, image, certificate);
 
@@ -106,29 +102,26 @@ public ResponseEntity<?> updateProfile(
 
     private CurrentUserDTO mapToDTO(User user) {
 
-    String role = "";
-    boolean profileCompleted = false;
-
-    if (user.getStudent() != null) {
-        role = "STUDENT";
-        profileCompleted = user.isProfileCompleted();
-    } 
-    else if (user.getDietitian() != null) {
-        role = "DIETITIAN";
-        profileCompleted = user.isProfileCompleted();
-    }
-
     return new CurrentUserDTO(
             user.getId(),
             user.getEmail(),
             user.getFirstName(),
             user.getLastName(),
-            role,
-            profileCompleted,
-            user.isEnabled() 
+
+            user.getRole() != null ? user.getRole().name() : null,
+            user.isProfileCompleted(),
+            user.isEnabled(),
+
+            user.getPhoneNumber(),
+            user.getImgUrl(),
+            user.getAddress()
     );
 }
 
 
+@GetMapping("/all")
+public ResponseEntity<List<UserProfile>> getAllUsers() {
+    return ResponseEntity.ok(userService.getAllUsers());
+}
    
     }

@@ -28,7 +28,6 @@ public class StudentService implements IStudentService {
         student.setWeight(request.getWeight());
         student.setActivityLevel(request.getActivityLevel());
         student.setGoal(request.getGoal());
-        student.setImgUrl(request.getImgUrl());
 
         // BMI calculation
         float heightMeters = request.getHeight() / 100;
@@ -77,9 +76,6 @@ public void updateStudentProfile(User user, UpdateProfileRequest request) {
         student.setGoal(request.getGoal());
     }
 
-    if (request.getImgUrl() != null) {
-        student.setImgUrl(request.getImgUrl());
-    }
 
     // Recalculate BMI safely
     if (student.getHeight() != null && student.getWeight() != null) {
@@ -105,12 +101,8 @@ public void updateStudentProfile(User user, UpdateProfileRequest request) {
         sp.setHeight(student.getHeight() != null ? student.getHeight().doubleValue() : null);
         sp.setActivityLevel(student.getActivityLevel());
         sp.setGoal(student.getGoal());
-        sp.setImageUrl(student.getImgUrl());
 
         return sp;
     }
-
-
-
-    
+  
 }

@@ -27,7 +27,6 @@ public class Dietitian {
     String specialization;
     String certification;
     String linkUrl;
-    String imgUrl;
     Integer experienceYears;
     Double consultationPrice;
 

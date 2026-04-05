@@ -1,34 +1,34 @@
 package tn.esprit.peakwell.dto;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.experimental.FieldDefaults;
 import lombok.AccessLevel;
+import lombok.Data;
+import lombok.experimental.FieldDefaults;
+import tn.esprit.peakwell.entities.Address;
 
-
-@Getter
-@Setter
-@FieldDefaults(level= AccessLevel.PRIVATE)
 @Data
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class UpdateProfileRequest {
 
     String firstName;
     String lastName;
 
-    // Student
+    //  Student
     Float height;
     Float weight;
     String activityLevel;
     String goal;
 
-    // Shared image
-    String imgUrl;
-
-    // Dietitian
+    //  Dietitian
     String specialization;
-    String certification; // certificate URL
+    String certification;
     String linkUrl;
     Integer experienceYears;
     Double consultationPrice;
+
+    //  Shared 
+    String imgUrl;
+
+    //  NEW
+    String phoneNumber;
+    Address address;
 }

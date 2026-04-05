@@ -11,5 +11,4 @@ public class StudentProfile {
     Double weight;
     String activityLevel;
     String goal;
-    String imageUrl;
 }

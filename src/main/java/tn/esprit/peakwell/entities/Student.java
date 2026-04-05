@@ -27,7 +27,6 @@ public class Student {
     Float height;
     Float weight;
     Float bmi;
-    String imgUrl;
     String activityLevel;
     String goal;
 }

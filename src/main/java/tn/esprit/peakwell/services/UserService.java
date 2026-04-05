@@ -2,11 +2,16 @@ package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+
+import tn.esprit.peakwell.dto.DietitianProfile;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.StudentProfile;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.entities.User;
@@ -45,7 +50,26 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
                     HttpStatus.BAD_REQUEST, "Role is required");
         }
 
-        //  Upload files using NEW method (with folder structure)
+        // ✅ Validate phone
+        if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Phone number is required");
+        }
+
+        // ✅ Validate address
+        if (request.getAddress() == null ||
+            request.getAddress().getStreet() == null ||
+            request.getAddress().getCity() == null ||
+            request.getAddress().getPostalCode() == null ||
+            request.getAddress().getCountry() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Incomplete address");
+        }
+
+        user.setPhoneNumber(request.getPhoneNumber());
+        user.setAddress(request.getAddress());
+
         String imageUrl = fileUploadService.uploadFile(image, role, "profile");
         String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
 
@@ -56,11 +80,13 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
                         HttpStatus.BAD_REQUEST, "Student profile already completed");
             }
 
-            //  Student needs profile image
             if (imageUrl == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Profile image is required");
             }
+
+            user.setImgUrl(imageUrl);
+            user.setProfileCompleted(true);
 
             request.setImgUrl(imageUrl);
 
@@ -73,23 +99,22 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
                         HttpStatus.BAD_REQUEST, "Dietitian profile already completed");
             }
 
-            //  Dietitian needs BOTH
             if (imageUrl == null || certificateUrl == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Profile image and certificate are required");
             }
 
+            user.setImgUrl(imageUrl);
+            user.setEnabled(false);
+            user.setProfileCompleted(true);
+
             request.setImgUrl(imageUrl);
             request.setCertification(certificateUrl);
 
             dietitianService.createDietitian(user, request);
 
-            //  disable account until admin validation
-            user.setEnabled(false);
-            user.setProfileCompleted(true);
-
-        }  else {
+        } else {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Invalid role");
         }
@@ -127,6 +152,10 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
         profile.setLastName(user.getLastName());
         profile.setRole(user.getRole().toString());
         profile.setProfileCompleted(user.isProfileCompleted());
+        profile.setEnabled(user.isEnabled());
+        profile.setPhoneNumber(user.getPhoneNumber());
+        profile.setImageUrl(user.getImgUrl());
+        profile.setAddress(user.getAddress());
 
         //  Delegate to services
         if (user.getRole().toString().equals("STUDENT")) {
@@ -179,7 +208,19 @@ public void updateProfile(UpdateProfileRequest request, MultipartFile image, Mul
         String imageUrl = fileUploadService.uploadFile(image, role, "profile");
         String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
 
-        // inject into request (like completeProfile)
+        //  UPDATE USER SHARED FIELDS
+
+if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+    user.setPhoneNumber(request.getPhoneNumber());
+}
+
+if (request.getAddress() != null) {
+    user.setAddress(request.getAddress());
+}
+
+if (request.getImgUrl() != null) {
+    user.setImgUrl(request.getImgUrl());
+}
         if (imageUrl != null) {
             request.setImgUrl(imageUrl);
         }
@@ -225,4 +266,71 @@ public void updateProfile(UpdateProfileRequest request, MultipartFile image, Mul
         );
     }
 }
+
+
+  @Override
+   public List<UserProfile> getAllUsers() {
+
+    List<User> users = userRepository.findAllWithProfiles();
+
+    return users.stream()
+            .map(this::mapToUserProfile)
+            .toList();
+}
+
+
+private UserProfile mapToUserProfile(User user) {
+
+    UserProfile dto = new UserProfile();
+
+    dto.setId(user.getId());
+    dto.setEmail(user.getEmail());
+    dto.setFirstName(user.getFirstName());
+    dto.setLastName(user.getLastName());
+    dto.setRole(user.getRole().name());
+    dto.setProfileCompleted(user.isProfileCompleted());
+
+    
+    dto.setEnabled(user.isEnabled());
+    dto.setPhoneNumber(user.getPhoneNumber());
+    dto.setImageUrl(user.getImgUrl());
+    dto.setAddress(user.getAddress());
+
+    // Student
+    if (user.getStudent() != null) {
+
+        StudentProfile sp = new StudentProfile();
+
+        sp.setWeight(user.getStudent().getWeight() != null
+                ? user.getStudent().getWeight().doubleValue()
+                : null);
+
+        sp.setHeight(user.getStudent().getHeight() != null
+                ? user.getStudent().getHeight().doubleValue()
+                : null);
+
+        sp.setActivityLevel(user.getStudent().getActivityLevel());
+        sp.setGoal(user.getStudent().getGoal());
+
+        dto.setStudentProfile(sp);
+    }
+
+    
+    if (user.getDietitian() != null) {
+
+        DietitianProfile dp = new DietitianProfile();
+
+        dp.setSpecialization(user.getDietitian().getSpecialization());
+        dp.setExperienceYears(user.getDietitian().getExperienceYears());
+        dp.setConsultationPrice(user.getDietitian().getConsultationPrice());
+        dp.setLinkUrl(user.getDietitian().getLinkUrl());
+        dp.setCertificateUrl(user.getDietitian().getCertification());
+
+        dto.setDietitianProfile(dp);
+    }
+
+    return dto;
+}
+
+
 }

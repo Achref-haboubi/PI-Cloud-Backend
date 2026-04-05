@@ -31,7 +31,10 @@ public class User {
 
     String firstName;
     String lastName;
-
+    String phoneNumber;
+    String imgUrl;
+    @Embedded
+    Address address;
 
     @Temporal(TemporalType.TIMESTAMP)
     Date createdAt;
