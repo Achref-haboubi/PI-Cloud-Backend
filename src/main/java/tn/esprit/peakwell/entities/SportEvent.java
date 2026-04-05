@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import tn.esprit.peakwell.enums.EventCategory;
 import tn.esprit.peakwell.enums.EventStatus;
 
 import java.time.LocalDateTime;
@@ -36,9 +37,13 @@ public class SportEvent {
     @Column(nullable = false)
     private String location;
 
-    @NotBlank(message = "Sport type is required")
+    @NotNull(message = "Category is required")
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String sportType;
+    private EventCategory category;
+
+    @Column(length = 500)
+    private String eventDetail;
 
     @NotNull(message = "Max participants is required")
     @Min(value = 1, message = "Max participants must be at least 1")
@@ -65,22 +70,12 @@ public class SportEvent {
     public SportEvent() {
     }
 
-    public SportEvent(Long id, String title, String description, LocalDateTime eventDate, String location,
-                      String sportType, Integer maxParticipants, Integer currentParticipants,
-                      String imageUrl, EventStatus status) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.eventDate = eventDate;
-        this.location = location;
-        this.sportType = sportType;
-        this.maxParticipants = maxParticipants;
-        this.currentParticipants = currentParticipants;
-        this.imageUrl = imageUrl;
-        this.status = status;
-    }
-
     public void updateStatusBasedOnCapacity() {
+        if (this.eventDate != null && this.eventDate.isBefore(LocalDateTime.now())) {
+            this.status = EventStatus.FINISHED;
+            return;
+        }
+
         if (this.currentParticipants != null && this.maxParticipants != null) {
             if (this.currentParticipants >= this.maxParticipants) {
                 this.status = EventStatus.FULL;
@@ -130,12 +125,20 @@ public class SportEvent {
         this.location = location;
     }
 
-    public @NotBlank(message = "Sport type is required") String getSportType() {
-        return sportType;
+    public @NotNull(message = "Category is required") EventCategory getCategory() {
+        return category;
     }
 
-    public void setSportType(@NotBlank(message = "Sport type is required") String sportType) {
-        this.sportType = sportType;
+    public void setCategory(@NotNull(message = "Category is required") EventCategory category) {
+        this.category = category;
+    }
+
+    public String getEventDetail() {
+        return eventDetail;
+    }
+
+    public void setEventDetail(String eventDetail) {
+        this.eventDetail = eventDetail;
     }
 
     public @NotNull(message = "Max participants is required") @Min(value = 1, message = "Max participants must be at least 1") Integer getMaxParticipants() {

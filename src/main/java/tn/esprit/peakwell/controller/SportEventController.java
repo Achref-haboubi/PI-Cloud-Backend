@@ -1,7 +1,5 @@
 package tn.esprit.peakwell.controller;
 
-
-
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import tn.esprit.peakwell.entities.SportEvent;
 import tn.esprit.peakwell.services.SportEventService;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,6 +52,7 @@ public class SportEventController {
         sportEventService.deleteEvent(id);
         return ResponseEntity.ok("Event deleted successfully.");
     }
+
     @PostMapping("/upload")
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
         try {

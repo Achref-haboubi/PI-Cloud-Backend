@@ -2,8 +2,10 @@ package tn.esprit.peakwell.services;
 
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.entities.SportEvent;
+import tn.esprit.peakwell.enums.EventStatus;
 import tn.esprit.peakwell.repositories.SportEventRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -16,42 +18,84 @@ public class SportEventService {
     }
 
     public List<SportEvent> getAllEvents() {
-        return sportEventRepository.findAll();
+        // Met à jour en base les événements expirés
+        sportEventRepository.updateExpiredEvents();
+
+        List<SportEvent> events = sportEventRepository.findAll();
+
+        for (SportEvent event : events) {
+            applyRuntimeStatus(event);
+        }
+
+        return events;
     }
 
     public SportEvent getEventById(Long id) {
-        return sportEventRepository.findById(id)
+        // Met à jour en base les événements expirés
+        sportEventRepository.updateExpiredEvents();
+
+        SportEvent event = sportEventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
+
+        applyRuntimeStatus(event);
+        return event;
     }
 
     public SportEvent createEvent(SportEvent event) {
         if (event.getCurrentParticipants() == null) {
             event.setCurrentParticipants(0);
         }
+
         event.updateStatusBasedOnCapacity();
         return sportEventRepository.save(event);
     }
 
     public SportEvent updateEvent(Long id, SportEvent updatedEvent) {
-        SportEvent existingEvent = getEventById(id);
+        // Met à jour en base les événements expirés
+        sportEventRepository.updateExpiredEvents();
+
+        SportEvent existingEvent = sportEventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
+
+        if (isExpired(existingEvent) || existingEvent.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("Finished events cannot be modified.");
+        }
 
         existingEvent.setTitle(updatedEvent.getTitle());
         existingEvent.setDescription(updatedEvent.getDescription());
         existingEvent.setEventDate(updatedEvent.getEventDate());
         existingEvent.setLocation(updatedEvent.getLocation());
-        existingEvent.setSportType(updatedEvent.getSportType());
+        existingEvent.setCategory(updatedEvent.getCategory());
+        existingEvent.setEventDetail(updatedEvent.getEventDetail());
         existingEvent.setMaxParticipants(updatedEvent.getMaxParticipants());
         existingEvent.setCurrentParticipants(updatedEvent.getCurrentParticipants());
         existingEvent.setImageUrl(updatedEvent.getImageUrl());
-        existingEvent.setStatus(updatedEvent.getStatus());
 
-        existingEvent.updateStatusBasedOnCapacity();
+        if (updatedEvent.getStatus() == EventStatus.CANCELLED) {
+            existingEvent.setStatus(EventStatus.CANCELLED);
+        } else {
+            existingEvent.updateStatusBasedOnCapacity();
+        }
 
         return sportEventRepository.save(existingEvent);
     }
 
     public void deleteEvent(Long id) {
-        SportEvent event = getEventById(id);
+        SportEvent event = sportEventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
+
         sportEventRepository.delete(event);
+    }
+
+    private boolean isExpired(SportEvent event) {
+        return event.getEventDate() != null && event.getEventDate().isBefore(LocalDateTime.now());
+    }
+
+    private void applyRuntimeStatus(SportEvent event) {
+        if (isExpired(event)) {
+            event.setStatus(EventStatus.FINISHED);
+        } else {
+            event.updateStatusBasedOnCapacity();
+        }
     }
 }

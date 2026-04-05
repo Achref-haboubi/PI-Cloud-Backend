@@ -40,9 +40,18 @@ public class EventRegistrationService {
         return registrationRepository.findByEventId(eventId);
     }
 
+
+
+
     public EventRegistration createRegistration(Long eventId, EventRegistration registration) {
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
+
+        if (event.getEventDate() != null && event.getEventDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("This event is already finished. Registration is not allowed.");
+        }
+
+        event.updateStatusBasedOnCapacity();
 
         if (event.getStatus() != EventStatus.OPEN) {
             throw new IllegalArgumentException("This event is not open for registration.");
