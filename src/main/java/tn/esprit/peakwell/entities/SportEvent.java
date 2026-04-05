@@ -37,6 +37,12 @@ public class SportEvent {
     @Column(nullable = false)
     private String location;
 
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @NotNull(message = "Category is required")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -93,11 +99,11 @@ public class SportEvent {
         this.id = id;
     }
 
-    public @NotBlank(message = "Title is required") String getTitle() {
+    public String getTitle() {
         return title;
     }
 
-    public void setTitle(@NotBlank(message = "Title is required") String title) {
+    public void setTitle(String title) {
         this.title = title;
     }
 
@@ -109,27 +115,43 @@ public class SportEvent {
         this.description = description;
     }
 
-    public @NotNull(message = "Event date is required") @Future(message = "Event date must be in the future") LocalDateTime getEventDate() {
+    public LocalDateTime getEventDate() {
         return eventDate;
     }
 
-    public void setEventDate(@NotNull(message = "Event date is required") @Future(message = "Event date must be in the future") LocalDateTime eventDate) {
+    public void setEventDate(LocalDateTime eventDate) {
         this.eventDate = eventDate;
     }
 
-    public @NotBlank(message = "Location is required") String getLocation() {
+    public String getLocation() {
         return location;
     }
 
-    public void setLocation(@NotBlank(message = "Location is required") String location) {
+    public void setLocation(String location) {
         this.location = location;
     }
 
-    public @NotNull(message = "Category is required") EventCategory getCategory() {
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public EventCategory getCategory() {
         return category;
     }
 
-    public void setCategory(@NotNull(message = "Category is required") EventCategory category) {
+    public void setCategory(EventCategory category) {
         this.category = category;
     }
 
@@ -141,11 +163,11 @@ public class SportEvent {
         this.eventDetail = eventDetail;
     }
 
-    public @NotNull(message = "Max participants is required") @Min(value = 1, message = "Max participants must be at least 1") Integer getMaxParticipants() {
+    public Integer getMaxParticipants() {
         return maxParticipants;
     }
 
-    public void setMaxParticipants(@NotNull(message = "Max participants is required") @Min(value = 1, message = "Max participants must be at least 1") Integer maxParticipants) {
+    public void setMaxParticipants(Integer maxParticipants) {
         this.maxParticipants = maxParticipants;
     }
 

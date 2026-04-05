@@ -51,7 +51,6 @@ public class SportEventService {
     }
 
     public SportEvent updateEvent(Long id, SportEvent updatedEvent) {
-        // Met à jour en base les événements expirés
         sportEventRepository.updateExpiredEvents();
 
         SportEvent existingEvent = sportEventRepository.findById(id)
@@ -65,6 +64,8 @@ public class SportEventService {
         existingEvent.setDescription(updatedEvent.getDescription());
         existingEvent.setEventDate(updatedEvent.getEventDate());
         existingEvent.setLocation(updatedEvent.getLocation());
+        existingEvent.setLatitude(updatedEvent.getLatitude());
+        existingEvent.setLongitude(updatedEvent.getLongitude());
         existingEvent.setCategory(updatedEvent.getCategory());
         existingEvent.setEventDetail(updatedEvent.getEventDetail());
         existingEvent.setMaxParticipants(updatedEvent.getMaxParticipants());
