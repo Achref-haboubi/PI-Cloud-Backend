@@ -22,24 +22,30 @@ public class EmailService implements IEmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Override
-public void sendSimpleEmail(String to, String subject, String content) {
+
+@Override
+public void sendAccountStatusEmail(String to, String subject, String templateName, Map<String, Object> variables) {
 
     try {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        SimpleMailMessage message = new SimpleMailMessage();
+        // Inject variables into template
+        var context = new org.thymeleaf.context.Context();
+        context.setVariables(variables);
 
-        message.setFrom(fromEmail);
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(content);
+        String htmlContent = templateEngine.process(templateName, context);
+
+        helper.setFrom("PeakWell <" + fromEmail + ">");
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true); 
 
         mailSender.send(message);
 
     } catch (Exception ex) {
         ex.printStackTrace();
-
-        throw new RuntimeException("Error while sending email");
+        throw new RuntimeException("Error while sending HTML email");
     }
-}    
+}
 }

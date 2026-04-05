@@ -3,6 +3,7 @@ package tn.esprit.peakwell.services;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import tn.esprit.peakwell.dto.AccountStatusUpdateRequest;
 import tn.esprit.peakwell.dto.DietitianProfile;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.dto.StudentProfile;
@@ -271,7 +273,7 @@ if (request.getImgUrl() != null) {
     }
 
     @Override
-    public void toggleStatus(Long userId) {
+    public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
 
     try {
 
@@ -283,28 +285,22 @@ if (request.getImgUrl() != null) {
 
        userRepository.save(user);
 
-        //  SEND EMAIL
-        String subject = "Account Status Update";
+         String safeMessage = request.getMessage()
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;");
 
-        String content;
+    Map<String, Object> variables = Map.of(
+            "name", user.getFirstName(),
+            "status", user.isEnabled() ? "ACTIVE" : "BANNED",
+            "message", safeMessage
+    );
 
-        if (user.isEnabled()) {
-            content = "Hello " + user.getFirstName() + ",\n\n"
-                    + "Your account has been APPROVED .\n"
-                    + "You can now access the platform.\n\n"
-                    + "PeakWell Team";
-        } else {
-            content = "Hello " + user.getFirstName() + ",\n\n"
-                    + "Your account has been DISABLED .\n"
-                    + "Please contact support for more info.\n\n"
-                    + "PeakWell Team";
-        }
-
-        emailService.sendSimpleEmail(
-                user.getEmail(),
-                subject,
-                content
-        );
+    emailService.sendAccountStatusEmail(
+            user.getEmail(),
+            request.getSubject(),
+            "account-status",
+            variables
+    );
 
     } catch (ResponseStatusException ex) {
         throw ex;

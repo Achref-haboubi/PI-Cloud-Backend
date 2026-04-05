@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import tn.esprit.peakwell.dto.AccountStatusUpdateRequest;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserProfile;
@@ -14,6 +15,6 @@ public interface IUserService {
     void updateProfile( UpdateProfileRequest request, MultipartFile image,  MultipartFile certificate);
     UserProfile getCurrentUserProfile();
     List<UserProfile> getAllUsers();
-    void toggleStatus(Long userId);
+    void toggleStatus(Long userId, AccountStatusUpdateRequest request);
    
 }

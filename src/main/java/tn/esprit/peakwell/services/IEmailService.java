@@ -1,8 +1,9 @@
 package tn.esprit.peakwell.services;
 
+import java.util.Map;
 
 public interface IEmailService {
     
-    void sendSimpleEmail(String to, String subject, String content);
+    void sendAccountStatusEmail(String to, String subject, String templateName, Map<String, Object> variables);
 
 }

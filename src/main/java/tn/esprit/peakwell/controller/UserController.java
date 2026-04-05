@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
-
+import tn.esprit.peakwell.dto.AccountStatusUpdateRequest;
 import tn.esprit.peakwell.dto.CurrentUserDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
@@ -119,9 +119,9 @@ public ResponseEntity<?> updateProfile(
 }
 
 @PatchMapping("/{id}/toggle-status")
-public ResponseEntity<?> toggleUserStatus(@PathVariable Long id) {
+public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestBody AccountStatusUpdateRequest request) {
 
-    userService.toggleStatus(id);
+    userService.toggleStatus(id, request);
 
     return ResponseEntity.ok(
             Map.of("message", "User status updated successfully")
