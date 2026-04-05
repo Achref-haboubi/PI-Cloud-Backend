@@ -3,9 +3,7 @@ package tn.esprit.peakwell.services;
 
 import tn.esprit.peakwell.dto.MedicalProfileRequest;
 import tn.esprit.peakwell.dto.MedicalProfileResponse;
-import tn.esprit.peakwell.entities.Dietitian;
 import tn.esprit.peakwell.entities.MedicalProfile;
-import tn.esprit.peakwell.entities.Student;
 import tn.esprit.peakwell.repositories.DietitianRepository;
 import tn.esprit.peakwell.repositories.MedicalProfileRepository;
 import tn.esprit.peakwell.repositories.StudentRepository;
@@ -23,46 +21,60 @@ public class MedicalProfileService {
     private final StudentRepository studentRepository;
     private final DietitianRepository dietitianRepository;
 
-    // We use id=1 as the single profile for now
-    private static final Long PROFILE_ID = 1L;
-
-    public MedicalProfileResponse getProfile() {
-        return repository.findById(PROFILE_ID)
+    /** Get the profile belonging to the given student/user ID. */
+    public MedicalProfileResponse getProfile(Long userId) {
+        return repository.findByStudentId(userId)
                 .map(this::toResponse)
                 .orElse(null);
     }
 
-    public MedicalProfileResponse saveProfile(MedicalProfileRequest request) {
-        MedicalProfile profile = repository.findById(PROFILE_ID)
+    /** Save (create or update) the profile for the given student/user ID. */
+    public MedicalProfileResponse saveProfile(MedicalProfileRequest request, Long userId) {
+        MedicalProfile profile = repository.findByStudentId(userId)
                 .orElse(MedicalProfile.builder().build());
 
-        profile.setFirstName(request.getFirstName());
-        profile.setLastName(request.getLastName());
-        profile.setDateOfBirth(request.getDateOfBirth());
+        // Always link student and pull height + name directly from the Student/User record
+        var student = studentRepository.findById(userId).orElse(null);
+        if (student != null) {
+            if (profile.getStudent() == null) {
+                profile.setStudent(student);
+            }
+            // Auto-fill from student record — frontend values are ignored for these fields
+            var user = student.getUser();
+            if (user != null) {
+                profile.setFirstName(user.getFirstName());
+                profile.setLastName(user.getLastName());
+            }
+            if (student.getHeight() != null) {
+                profile.setHeight(student.getHeight().doubleValue());
+            }
+        }
+
+        // DateOfBirth: use request value if provided, otherwise keep existing
+        if (request.getDateOfBirth() != null && !request.getDateOfBirth().isBlank()) {
+            profile.setDateOfBirth(request.getDateOfBirth());
+        }
+
         profile.setGender(request.getGender());
         profile.setBloodType(request.getBloodType());
-        profile.setHeight(request.getHeight());
         profile.setEmergencyContact(request.getEmergencyContact());
         profile.setAllergies(request.getAllergies() != null ? request.getAllergies() : new ArrayList<>());
         profile.setConditions(request.getConditions() != null ? request.getConditions() : new ArrayList<>());
         profile.setMedications(request.getMedications() != null ? request.getMedications() : new ArrayList<>());
 
-        if (request.getStudentId() != null) {
-            studentRepository.findById(request.getStudentId()).ifPresent(profile::setStudent);
-        }
         if (request.getDietitianId() != null) {
             dietitianRepository.findById(request.getDietitianId()).ifPresent(profile::setAssignedDietitian);
         }
 
-        boolean complete = request.getFirstName() != null && !request.getFirstName().isBlank()
-                && request.getLastName() != null && !request.getLastName().isBlank()
-                && request.getDateOfBirth() != null && !request.getDateOfBirth().isBlank()
-                && request.getGender() != null && !request.getGender().isBlank()
-                && request.getBloodType() != null && !request.getBloodType().isBlank()
-                && request.getHeight() != null && request.getHeight() > 0;
+        // Check completeness from the profile's actual values (name/height come from student entity)
+        // dateOfBirth is optional — neither User nor Student entity stores it
+        boolean complete = profile.getFirstName() != null && !profile.getFirstName().isBlank()
+                && profile.getLastName()  != null && !profile.getLastName().isBlank()
+                && profile.getGender()    != null && !profile.getGender().isBlank()
+                && profile.getBloodType() != null && !profile.getBloodType().isBlank()
+                && profile.getHeight()    != null && profile.getHeight() > 0;
 
         profile.setComplete(complete);
-
         return toResponse(repository.save(profile));
     }
 

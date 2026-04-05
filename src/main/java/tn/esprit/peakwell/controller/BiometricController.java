@@ -1,9 +1,9 @@
 package tn.esprit.peakwell.controller;
 
-import org.hibernate.annotations.Cascade;
 import tn.esprit.peakwell.dto.BiometricRequest;
 import tn.esprit.peakwell.dto.BiometricResponse;
 import tn.esprit.peakwell.dto.HealthAlertDto;
+import tn.esprit.peakwell.security.JwtUtils;
 import tn.esprit.peakwell.services.BiometricService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,20 +19,35 @@ import java.util.List;
 public class BiometricController {
 
     private final BiometricService biometricService;
+    private final JwtUtils jwtUtils;
+
+    /** Extract userId from JWT, or fall back to 1 if no token present (dev mode). */
+    private Long resolveUserId(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                return jwtUtils.extractUserId(authHeader.substring(7));
+            } catch (Exception ignored) {}
+        }
+        return 1L;
+    }
 
     @GetMapping
-    public ResponseEntity<List<BiometricResponse>> getAll() {
-        return ResponseEntity.ok(biometricService.getAll());
+    public ResponseEntity<List<BiometricResponse>> getAll(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(biometricService.getAll(resolveUserId(authHeader)));
     }
 
     @PostMapping
-    public ResponseEntity<BiometricResponse> addEntry(@Valid @RequestBody BiometricRequest request) {
-        return ResponseEntity.ok(biometricService.addEntry(request));
+    public ResponseEntity<BiometricResponse> addEntry(
+            @Valid @RequestBody BiometricRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(biometricService.addEntry(request, resolveUserId(authHeader)));
     }
 
     @GetMapping("/latest")
-    public ResponseEntity<BiometricResponse> getLatest() {
-        BiometricResponse latest = biometricService.getLatest();
+    public ResponseEntity<BiometricResponse> getLatest(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        BiometricResponse latest = biometricService.getLatest(resolveUserId(authHeader));
         return latest != null ? ResponseEntity.ok(latest) : ResponseEntity.noContent().build();
     }
 
@@ -48,7 +63,8 @@ public class BiometricController {
     }
 
     @GetMapping("/alerts")
-    public ResponseEntity<List<HealthAlertDto>> getAlerts() {
-        return ResponseEntity.ok(biometricService.getAlerts());
+    public ResponseEntity<List<HealthAlertDto>> getAlerts(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(biometricService.getAlerts(resolveUserId(authHeader)));
     }
 }

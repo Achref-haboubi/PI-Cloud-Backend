@@ -49,6 +49,7 @@ public class HealthHeatmapService {
       String firstName = profile.getFirstName() != null ? profile.getFirstName() : "";
       String lastName = profile.getLastName() != null ? profile.getLastName() : "";
       patient.put("profileId", pid);
+      patient.put("studentId", profile.getStudent() != null ? profile.getStudent().getId() : null);
       patient.put("name", (firstName + " " + lastName).trim());
       patient.put("initials", ((firstName.isEmpty() ? "" : firstName.substring(0, 1)) +
         (lastName.isEmpty() ? "" : lastName.substring(0, 1))).toUpperCase());
