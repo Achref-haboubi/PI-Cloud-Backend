@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserService implements IUserService{
 
+    @Autowired
+    private IEmailService emailService
+;
     private final AuthService authService;
     private final UserRepository userRepository;
     private final StudentService studentService;
@@ -50,13 +54,13 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
                     HttpStatus.BAD_REQUEST, "Role is required");
         }
 
-        // ✅ Validate phone
+        //  Validate phone
         if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Phone number is required");
         }
 
-        // ✅ Validate address
+        //  Validate address
         if (request.getAddress() == null ||
             request.getAddress().getStreet() == null ||
             request.getAddress().getCity() == null ||
@@ -134,43 +138,7 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
     }
 }
 
-    @Override
-    @Transactional(readOnly = true)
-    public UserProfile getCurrentUserProfile() {
-
-        //  Get current user
-        String keycloakId = authService.getCurrentUserId();
-
-        User user = userRepository.findByKeycloakId(keycloakId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        //  Basic mapping
-        UserProfile profile = new UserProfile();
-        profile.setId(user.getId());
-        profile.setEmail(user.getEmail());
-        profile.setFirstName(user.getFirstName());
-        profile.setLastName(user.getLastName());
-        profile.setRole(user.getRole().toString());
-        profile.setProfileCompleted(user.isProfileCompleted());
-        profile.setEnabled(user.isEnabled());
-        profile.setPhoneNumber(user.getPhoneNumber());
-        profile.setImageUrl(user.getImgUrl());
-        profile.setAddress(user.getAddress());
-
-        //  Delegate to services
-        if (user.getRole().toString().equals("STUDENT")) {
-            profile.setStudentProfile(studentService.getStudentProfile(user));
-        }
-
-        if (user.getRole().toString().equals("DIETITIAN")) {
-            profile.setDietitianProfile(dietitianService.getDietitianProfile(user));
-        }
-
-        return profile;
-    }
-
-
-    @Override
+@Override
 public void updateProfile(UpdateProfileRequest request, MultipartFile image, MultipartFile certificate) {
 
     try {
@@ -267,6 +235,89 @@ if (request.getImgUrl() != null) {
     }
 }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfile getCurrentUserProfile() {
+
+        //  Get current user
+        String keycloakId = authService.getCurrentUserId();
+
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        //  Basic mapping
+        UserProfile profile = new UserProfile();
+        profile.setId(user.getId());
+        profile.setEmail(user.getEmail());
+        profile.setFirstName(user.getFirstName());
+        profile.setLastName(user.getLastName());
+        profile.setRole(user.getRole().toString());
+        profile.setProfileCompleted(user.isProfileCompleted());
+        profile.setEnabled(user.isEnabled());
+        profile.setPhoneNumber(user.getPhoneNumber());
+        profile.setImageUrl(user.getImgUrl());
+        profile.setAddress(user.getAddress());
+
+        //  Delegate to services
+        if (user.getRole().toString().equals("STUDENT")) {
+            profile.setStudentProfile(studentService.getStudentProfile(user));
+        }
+
+        if (user.getRole().toString().equals("DIETITIAN")) {
+            profile.setDietitianProfile(dietitianService.getDietitianProfile(user));
+        }
+
+        return profile;
+    }
+
+    @Override
+    public void toggleStatus(Long userId) {
+
+    try {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found"));
+
+        user.setEnabled(!user.isEnabled());
+
+       userRepository.save(user);
+
+        //  SEND EMAIL
+        String subject = "Account Status Update";
+
+        String content;
+
+        if (user.isEnabled()) {
+            content = "Hello " + user.getFirstName() + ",\n\n"
+                    + "Your account has been APPROVED .\n"
+                    + "You can now access the platform.\n\n"
+                    + "PeakWell Team";
+        } else {
+            content = "Hello " + user.getFirstName() + ",\n\n"
+                    + "Your account has been DISABLED .\n"
+                    + "Please contact support for more info.\n\n"
+                    + "PeakWell Team";
+        }
+
+        emailService.sendSimpleEmail(
+                user.getEmail(),
+                subject,
+                content
+        );
+
+    } catch (ResponseStatusException ex) {
+        throw ex;
+
+    } catch (Exception ex) {
+        ex.printStackTrace();
+
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error while updating user status"
+        );
+    }
+}
 
   @Override
    public List<UserProfile> getAllUsers() {

@@ -14,5 +14,6 @@ public interface IUserService {
     void updateProfile( UpdateProfileRequest request, MultipartFile image,  MultipartFile certificate);
     UserProfile getCurrentUserProfile();
     List<UserProfile> getAllUsers();
+    void toggleStatus(Long userId);
    
 }

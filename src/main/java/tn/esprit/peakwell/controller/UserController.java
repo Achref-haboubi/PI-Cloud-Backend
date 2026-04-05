@@ -118,6 +118,15 @@ public ResponseEntity<?> updateProfile(
     );
 }
 
+@PatchMapping("/{id}/toggle-status")
+public ResponseEntity<?> toggleUserStatus(@PathVariable Long id) {
+
+    userService.toggleStatus(id);
+
+    return ResponseEntity.ok(
+            Map.of("message", "User status updated successfully")
+    );
+}
 
 @GetMapping("/all")
 public ResponseEntity<List<UserProfile>> getAllUsers() {
