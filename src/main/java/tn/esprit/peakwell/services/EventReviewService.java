@@ -28,51 +28,51 @@ public class EventReviewService {
         this.registrationRepository = registrationRepository;
     }
 
-    public List<EventReview> getAllReviews() {
+    private void syncExpiredEventsAndRegistrations() {
         sportEventRepository.updateExpiredEvents();
+        registrationRepository.updateConfirmedRegistrationsToAttended();
+    }
+
+    public List<EventReview> getAllReviews() {
+        syncExpiredEventsAndRegistrations();
         return reviewRepository.findAll();
     }
 
     public EventReview getReviewById(Long id) {
-        sportEventRepository.updateExpiredEvents();
+        syncExpiredEventsAndRegistrations();
 
         return reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + id));
     }
 
     public List<EventReview> getReviewsByStudentId(Long studentId) {
-        sportEventRepository.updateExpiredEvents();
+        syncExpiredEventsAndRegistrations();
         return reviewRepository.findByStudentId(studentId);
     }
 
     public List<EventReview> getReviewsByEventId(Long eventId) {
-        sportEventRepository.updateExpiredEvents();
+        syncExpiredEventsAndRegistrations();
         return reviewRepository.findByEventId(eventId);
     }
 
     public EventReview createReview(Long eventId, EventReview review) {
-        // Met à jour en base les événements expirés
-        sportEventRepository.updateExpiredEvents();
+        syncExpiredEventsAndRegistrations();
 
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
 
-        // L’événement doit être terminé
         if (event.getStatus() != EventStatus.FINISHED) {
             throw new IllegalArgumentException("Review is allowed only after event completion.");
         }
 
-        // L’étudiant doit être inscrit
         EventRegistration registration = registrationRepository
                 .findByStudentIdAndEventId(review.getStudentId(), eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Student did not register for this event."));
 
-        // Il doit avoir vraiment participé
         if (registration.getStatus() != RegistrationStatus.ATTENDED) {
             throw new IllegalArgumentException("Only attended students can review this event.");
         }
 
-        // Empêcher double review
         reviewRepository.findByStudentIdAndEventId(review.getStudentId(), eventId)
                 .ifPresent(existing -> {
                     throw new IllegalArgumentException("This student already reviewed this event.");
@@ -85,7 +85,7 @@ public class EventReviewService {
     }
 
     public EventReview updateReview(Long id, EventReview updatedReview) {
-        sportEventRepository.updateExpiredEvents();
+        syncExpiredEventsAndRegistrations();
 
         EventReview existingReview = getReviewById(id);
 

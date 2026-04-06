@@ -23,27 +23,35 @@ public class EventRegistrationService {
         this.sportEventRepository = sportEventRepository;
     }
 
+    private void syncExpiredEventsAndRegistrations() {
+        sportEventRepository.updateExpiredEvents();
+        registrationRepository.updateConfirmedRegistrationsToAttended();
+    }
+
     public List<EventRegistration> getAllRegistrations() {
+        syncExpiredEventsAndRegistrations();
         return registrationRepository.findAll();
     }
 
     public EventRegistration getRegistrationById(Long id) {
+        syncExpiredEventsAndRegistrations();
         return registrationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Registration not found with id: " + id));
     }
 
     public List<EventRegistration> getRegistrationsByStudentId(Long studentId) {
+        syncExpiredEventsAndRegistrations();
         return registrationRepository.findByStudentId(studentId);
     }
 
     public List<EventRegistration> getRegistrationsByEventId(Long eventId) {
+        syncExpiredEventsAndRegistrations();
         return registrationRepository.findByEventId(eventId);
     }
 
-
-
-
     public EventRegistration createRegistration(Long eventId, EventRegistration registration) {
+        syncExpiredEventsAndRegistrations();
+
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
 
@@ -80,14 +88,26 @@ public class EventRegistrationService {
     }
 
     public EventRegistration updateRegistrationStatus(Long id, RegistrationStatus status) {
+        syncExpiredEventsAndRegistrations();
+
         EventRegistration registration = getRegistrationById(id);
         registration.setStatus(status);
         return registrationRepository.save(registration);
     }
 
     public void deleteRegistration(Long id) {
+        syncExpiredEventsAndRegistrations();
+
         EventRegistration registration = getRegistrationById(id);
         SportEvent event = registration.getEvent();
+
+        if (registration.getStatus() == RegistrationStatus.ATTENDED) {
+            throw new IllegalArgumentException("Attended registrations cannot be cancelled.");
+        }
+
+        if (event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("Finished event registrations cannot be cancelled.");
+        }
 
         if (registration.getStatus() == RegistrationStatus.CONFIRMED && event.getCurrentParticipants() > 0) {
             event.setCurrentParticipants(event.getCurrentParticipants() - 1);
