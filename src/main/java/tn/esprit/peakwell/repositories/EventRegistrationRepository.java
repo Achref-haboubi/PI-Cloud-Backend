@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.peakwell.entities.EventRegistration;
+import tn.esprit.peakwell.enums.RegistrationStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,11 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     List<EventRegistration> findByEventId(Long eventId);
 
     Optional<EventRegistration> findByStudentIdAndEventId(Long studentId, Long eventId);
+
+    Optional<EventRegistration> findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
+            Long eventId,
+            RegistrationStatus status
+    );
 
     @Modifying
     @Transactional

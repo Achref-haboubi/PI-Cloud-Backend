@@ -61,8 +61,8 @@ public class EventRegistrationService {
 
         event.updateStatusBasedOnCapacity();
 
-        if (event.getStatus() != EventStatus.OPEN) {
-            throw new IllegalArgumentException("This event is not open for registration.");
+        if (event.getStatus() == EventStatus.CANCELLED || event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("This event is not available for registration.");
         }
 
         registrationRepository.findByStudentIdAndEventId(registration.getStudentId(), eventId)
@@ -78,7 +78,6 @@ public class EventRegistrationService {
             event.setCurrentParticipants(event.getCurrentParticipants() + 1);
         } else {
             registration.setStatus(RegistrationStatus.WAITING);
-            event.setStatus(EventStatus.FULL);
         }
 
         event.updateStatusBasedOnCapacity();
@@ -92,6 +91,7 @@ public class EventRegistrationService {
 
         EventRegistration registration = getRegistrationById(id);
         registration.setStatus(status);
+
         return registrationRepository.save(registration);
     }
 
@@ -109,12 +109,27 @@ public class EventRegistrationService {
             throw new IllegalArgumentException("Finished event registrations cannot be cancelled.");
         }
 
+        boolean confirmedWasRemoved = false;
+
         if (registration.getStatus() == RegistrationStatus.CONFIRMED && event.getCurrentParticipants() > 0) {
             event.setCurrentParticipants(event.getCurrentParticipants() - 1);
-            event.updateStatusBasedOnCapacity();
-            sportEventRepository.save(event);
+            confirmedWasRemoved = true;
         }
 
         registrationRepository.delete(registration);
+
+        if (confirmedWasRemoved) {
+            registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
+                    event.getId(),
+                    RegistrationStatus.WAITING
+            ).ifPresent(waitingRegistration -> {
+                waitingRegistration.setStatus(RegistrationStatus.CONFIRMED);
+                registrationRepository.save(waitingRegistration);
+                event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+            });
+        }
+
+        event.updateStatusBasedOnCapacity();
+        sportEventRepository.save(event);
     }
 }
