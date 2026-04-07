@@ -12,7 +12,7 @@ import tn.esprit.peakwell.dto.UserProfile;
 public interface IUserService {
 
     void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate);
-    void updateProfile( UpdateProfileRequest request, MultipartFile image,  MultipartFile certificate);
+    UserProfile  updateProfile( UpdateProfileRequest request, MultipartFile image,  MultipartFile certificate);
     UserProfile getCurrentUserProfile();
     List<UserProfile> getAllUsers();
     void toggleStatus(Long userId, AccountStatusUpdateRequest request);

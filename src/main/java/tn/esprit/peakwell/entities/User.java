@@ -54,6 +54,14 @@ public class User {
     @Column(nullable = false)
     boolean profileCompleted = false;
 
+    int failedAttempts = 0;
+    int totalFailedAttempts = 0;
+
+    boolean accountLocked = false;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    Date lockTime;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore
     Student student;

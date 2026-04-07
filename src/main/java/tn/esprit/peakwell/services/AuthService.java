@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.AuthResponse;
@@ -19,6 +20,7 @@ import tn.esprit.peakwell.entities.Role;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 
+import java.util.Date;
 import java.util.Map;
 
 
@@ -29,6 +31,8 @@ public class AuthService implements IAuthService{
     private final KeycloakService keycloakService;
     @Autowired
     UserRepository userRepository;
+    
+    private final IEmailService emailService;
 
     @Value("${keycloak.server-url}")
     private String serverUrl;
@@ -44,9 +48,32 @@ public class AuthService implements IAuthService{
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Override
-public ResponseEntity<?> login(LoginRequest request) {
+    public ResponseEntity<?> login(LoginRequest request) {
 
+    //  Get user from DB
+    User user = userRepository.findByEmail(request.getEmail());
+
+    if (user == null) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body("Invalid email or password");
+    }
+
+    //  Check if disabled by admin
+    if (!user.isEnabled()) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body("Account is disabled by admin");
+    }
+
+    //  Check if locked
+    if (isLocked(user)) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body("Account locked for 1 hour due to multiple failed attempts");
+    }
+
+    //  Call Keycloak
     String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -67,6 +94,9 @@ public ResponseEntity<?> login(LoginRequest request) {
 
         Map<String, Object> res = response.getBody();
 
+        //  SUCCESS  reset attempts
+        handleSuccessLogin(user);
+
         AuthResponse auth = new AuthResponse();
         auth.setAccessToken((String) res.get("access_token"));
         auth.setRefreshToken((String) res.get("refresh_token"));
@@ -74,9 +104,13 @@ public ResponseEntity<?> login(LoginRequest request) {
 
         return ResponseEntity.ok(auth);
 
-    } catch (org.springframework.web.client.HttpClientErrorException e) {
+    } catch (HttpClientErrorException e) {
 
+        //  WRONG PASSWORD
         if (e.getStatusCode().value() == 401) {
+
+            handleFailedLogin(user);
+
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body("Invalid email or password");
@@ -104,6 +138,7 @@ public ResponseEntity<?> register(RegisterRequest request) {
 
         keycloakId = keycloakService.createUser(request);
 
+        System.out.println("EMAIL FROM FRONT: " + request.getEmail());
         User user = new User();
         user.setKeycloakId(keycloakId);
         user.setEmail(request.getEmail());
@@ -188,4 +223,55 @@ public ResponseEntity<?> register(RegisterRequest request) {
     public void forgotPassword(String email) {
         keycloakService.forgotPassword(email);
     }
+
+
+    public void handleFailedLogin(User user) {
+
+    user.setFailedAttempts(user.getFailedAttempts() + 1);
+    user.setTotalFailedAttempts(user.getTotalFailedAttempts() + 1);
+
+    if (user.getFailedAttempts() >= 3) {
+
+        user.setAccountLocked(true);
+        user.setLockTime(new Date());
+
+        //  SEND LOCK EMAIL
+        emailService.sendAccountLockedEmail( user );
+    }
+
+    userRepository.save(user);
+}
+
+    public void handleSuccessLogin(User user) {
+    user.setFailedAttempts(0);
+    user.setAccountLocked(false);
+    user.setLockTime(null);
+
+    userRepository.save(user);
+}
+
+   public boolean isLocked(User user) {
+
+    if (!user.isAccountLocked()) return false;
+
+    long ONE_HOUR = 60 * 60 * 1000;
+    long diff = new Date().getTime() - user.getLockTime().getTime();
+
+    if (diff > ONE_HOUR) {
+
+        user.setAccountLocked(false);
+        user.setFailedAttempts(0);
+        user.setLockTime(null);
+
+        userRepository.save(user);
+
+        //  SEND UNLOCK EMAIL
+        //emailService.sendAccountUnlockedEmail(user);
+
+        return false;
+    }
+
+    return true;
+}
+
 }

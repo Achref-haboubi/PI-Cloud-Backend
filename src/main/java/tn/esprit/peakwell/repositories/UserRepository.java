@@ -17,5 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     LEFT JOIN FETCH u.dietitian
     """)
     List<User> findAllWithProfiles();
+    List<User> findByAccountLockedTrue();
 
 }

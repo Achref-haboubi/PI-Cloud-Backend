@@ -88,15 +88,16 @@ public ResponseEntity<?> getCurrentUser() {
     }
 
     @PatchMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<?> updateProfile(
+public ResponseEntity<UserProfile> updateProfile(
         @ModelAttribute UpdateProfileRequest request,
         @RequestPart(value = "image", required = false) MultipartFile image,
         @RequestPart(value = "certificate", required = false) MultipartFile certificate
 ) {
 
-    userService.updateProfile(request, image, certificate);
+    UserProfile updatedProfile =
+            userService.updateProfile(request, image, certificate);
 
-    return ResponseEntity.ok("Profile updated successfully");
+    return ResponseEntity.ok(updatedProfile);
 }
 
 

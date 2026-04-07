@@ -140,8 +140,9 @@ public void completeProfile(ProfileRequest request, MultipartFile image, Multipa
     }
 }
 
-@Override
-public void updateProfile(UpdateProfileRequest request, MultipartFile image, MultipartFile certificate) {
+public UserProfile updateProfile(UpdateProfileRequest request,
+                                 MultipartFile image,
+                                 MultipartFile certificate) {
 
     try {
 
@@ -151,9 +152,8 @@ public void updateProfile(UpdateProfileRequest request, MultipartFile image, Mul
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
 
-        String role = user.getRole().name(); // role already exists
+        String role = user.getRole().name();
 
-       
         boolean nameUpdated = false;
 
         if (request.getFirstName() != null) {
@@ -174,31 +174,28 @@ public void updateProfile(UpdateProfileRequest request, MultipartFile image, Mul
             );
         }
 
-    
+        // 🔥 upload files
         String imageUrl = fileUploadService.uploadFile(image, role, "profile");
         String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
 
-        //  UPDATE USER SHARED FIELDS
+        // 🔥 update user fields
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
 
-if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-    user.setPhoneNumber(request.getPhoneNumber());
-}
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
 
-if (request.getAddress() != null) {
-    user.setAddress(request.getAddress());
-}
-
-if (request.getImgUrl() != null) {
-    user.setImgUrl(request.getImgUrl());
-}
         if (imageUrl != null) {
-            request.setImgUrl(imageUrl);
+            user.setImgUrl(imageUrl); // ✅ FIX (not request)
         }
 
         if (certificateUrl != null) {
             request.setCertification(certificateUrl);
         }
 
+        // 🔥 role logic
         if ("STUDENT".equals(role)) {
 
             if (user.getStudent() == null) {
@@ -223,6 +220,9 @@ if (request.getImgUrl() != null) {
         }
 
         userRepository.save(user);
+
+        //  RETURN UPDATED PROFILE
+        return mapToUserProfile(user);
 
     } catch (ResponseStatusException ex) {
         throw ex;

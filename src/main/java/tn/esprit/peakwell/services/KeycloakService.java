@@ -33,8 +33,12 @@ public class KeycloakService implements IKeycloakService{
 
     try {
 
+
+
         System.out.println("TOKEN = " + keycloak.tokenManager().getAccessToken().getToken());
 
+                System.out.println("EMAIL TO KEYCLOAK: " + request.getEmail());
+System.out.println("USERNAME TO KEYCLOAK: " + request.getFirstName());
         UserRepresentation user = new UserRepresentation();
         user.setEnabled(true);
         user.setEmail(request.getEmail());
