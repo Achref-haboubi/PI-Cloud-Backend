@@ -16,6 +16,9 @@ public interface SymptomEntryRepository extends JpaRepository<SymptomEntry, Long
 
   List<SymptomEntry> findBySymptomIgnoreCaseOrderByLogDateDesc(String symptom);
 
+  List<SymptomEntry> findTop10ByProfileIdOrderByLogDateDesc(Long profileId);
+
+
   @Query("SELECT DISTINCT s.symptom FROM SymptomEntry s ORDER BY s.symptom")
   List<String> findDistinctSymptoms();
 
@@ -23,6 +26,7 @@ public interface SymptomEntryRepository extends JpaRepository<SymptomEntry, Long
   List<Object[]> findSymptomFrequencies();
 
   List<SymptomEntry> findTop30ByOrderByLogDateDesc();
+  List<SymptomEntry> findTop10ByOrderByLogDateDesc();
   List<SymptomEntry> findByProfileIdAndLogDateBetweenOrderByLogDateAsc(Long profileId, LocalDate start, LocalDate end);
 
 }

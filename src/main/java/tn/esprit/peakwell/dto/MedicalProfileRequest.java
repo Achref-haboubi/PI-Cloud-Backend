@@ -15,4 +15,6 @@ public class MedicalProfileRequest {
     private List<String> allergies;
     private List<String> conditions;
     private List<String> medications;
+    private Long studentId;
+    private Long dietitianId;
 }

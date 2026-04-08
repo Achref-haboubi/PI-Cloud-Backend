@@ -17,4 +17,9 @@ public class MedicalProfileResponse {
     private List<String> conditions;
     private List<String> medications;
     private boolean complete;
+    private Long studentId;
+    private String studentName;
+    private Long dietitianId;
+    private String dietitianName;
+    private String dietitianSpecialization;
 }

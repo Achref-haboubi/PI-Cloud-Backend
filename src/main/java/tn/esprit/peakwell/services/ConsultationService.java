@@ -38,26 +38,26 @@ public class ConsultationService {
   public List<ConsultationResponse> getAll(Long dietitianId) {
     if (dietitianId == null)
       return consultRepo.findAllByOrderByScheduledAtDesc()
-        .stream().map(this::toResponse).collect(Collectors.toList());
+              .stream().map(this::toResponse).collect(Collectors.toList());
     return consultRepo.findByDietitianIdAndStatusNotOrderByScheduledAtDesc(dietitianId, "CANCELLED")
-      .stream().map(this::toResponse).collect(Collectors.toList());
+            .stream().map(this::toResponse).collect(Collectors.toList());
   }
   public List<ConsultationResponse> getUpcoming() {
     List<Consultation> all = consultRepo.findByScheduledAtAfterOrderByScheduledAtAsc(LocalDateTime.now())
-        .stream().filter(c -> !"CANCELLED".equals(c.getStatus())).collect(Collectors.toList());
+            .stream().filter(c -> !"CANCELLED".equals(c.getStatus())).collect(Collectors.toList());
 
     // Pre-compute waitlist positions per dietitian (priority → createdAt order)
     // Group waitlisted by dietitian id
     Map<Long, List<Consultation>> waitlistedByDietitian = all.stream()
-        .filter(c -> "WAITLISTED".equals(c.getStatus()))
-        .collect(Collectors.groupingBy(c -> c.getDietitian() != null ? c.getDietitian().getId() : 0L));
+            .filter(c -> "WAITLISTED".equals(c.getStatus()))
+            .collect(Collectors.groupingBy(c -> c.getDietitian() != null ? c.getDietitian().getId() : 0L));
 
     // Sort each group: URGENT first, then by createdAt
     Map<String, Integer> priorityOrder = Map.of("URGENT", 1, "HIGH", 2, "NORMAL", 3, "LOW", 4);
     waitlistedByDietitian.values().forEach(list ->
-        list.sort(Comparator
-            .comparingInt((Consultation c) -> priorityOrder.getOrDefault(c.getPriority(), 5))
-            .thenComparing(Consultation::getCreatedAt)));
+            list.sort(Comparator
+                    .comparingInt((Consultation c) -> priorityOrder.getOrDefault(c.getPriority(), 5))
+                    .thenComparing(Consultation::getCreatedAt)));
 
     // Build id → position map
     Map<Long, Integer> positionMap = new LinkedHashMap<>();
@@ -74,7 +74,7 @@ public class ConsultationService {
 
   public List<ConsultationResponse> getPending(Long dietitianId) {
     return consultRepo.findByDietitianIdAndStatusOrderByScheduledAtAsc(dietitianId, "PENDING_APPROVAL")
-      .stream().map(this::toResponse).collect(Collectors.toList());
+            .stream().map(this::toResponse).collect(Collectors.toList());
   }
 
   @Transactional
@@ -103,7 +103,7 @@ public class ConsultationService {
   }
   public List<ConsultationResponse> getPast() {
     return consultRepo.findByScheduledAtBeforeAndStatusNotOrderByScheduledAtDesc(LocalDateTime.now(), "CANCELLED")
-      .stream().map(this::toResponse).collect(Collectors.toList());
+            .stream().map(this::toResponse).collect(Collectors.toList());
   }
   public ConsultationResponse getById(Long id) { return toResponse(find(id)); }
 
@@ -111,16 +111,16 @@ public class ConsultationService {
   public ConsultationResponse book(ConsultationRequest req) {
     MedicalProfile profile = profileRepo.findById(PROFILE_ID).orElse(null);
     Dietitian dietitian = req.getDietitianId() != null
-      ? dietitianRepo.findById(req.getDietitianId()).orElse(null) : null;
+            ? dietitianRepo.findById(req.getDietitianId()).orElse(null) : null;
     Consultation c = Consultation.builder()
-      .profile(profile)
-      .dietitian(dietitian)
-      .scheduledAt(parseDateTime(req.getScheduledAt()))
-      .durationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 30)
-      .doctorName(req.getDoctorName()).doctorSpecialty(req.getDoctorSpecialty())
-      .consultationType(req.getConsultationType() != null ? req.getConsultationType() : "IN_PERSON")
-      .reason(req.getReason()).priority(req.getPriority() != null ? req.getPriority() : "NORMAL")
-      .build();
+            .profile(profile)
+            .dietitian(dietitian)
+            .scheduledAt(parseDateTime(req.getScheduledAt()))
+            .durationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 30)
+            .doctorName(req.getDoctorName()).doctorSpecialty(req.getDoctorSpecialty())
+            .consultationType(req.getConsultationType() != null ? req.getConsultationType() : "IN_PERSON")
+            .reason(req.getReason()).priority(req.getPriority() != null ? req.getPriority() : "NORMAL")
+            .build();
     attachBiometricSnapshot(c);
     attachGoalSnapshot(c);
     generateAiSummary(c, profile);
@@ -211,7 +211,7 @@ public class ConsultationService {
   public ConsultationResponse submitFeedback(Long consultId, Map<String, Object> data) {
     Consultation c = find(consultId);
     ConsultationFeedback fb = feedbackRepo.findByConsultationId(consultId)
-      .orElse(ConsultationFeedback.builder().consultation(c).build());
+            .orElse(ConsultationFeedback.builder().consultation(c).build());
     fb.setOverallRating(((Number) data.getOrDefault("overallRating", 3)).intValue());
     fb.setDoctorKnowledge(((Number) data.getOrDefault("doctorKnowledge", 3)).intValue());
     fb.setCommunication(((Number) data.getOrDefault("communication", 3)).intValue());
@@ -235,12 +235,12 @@ public class ConsultationService {
     addChange(changes, "bmi", c1.getSnapshotBmi(), c2.getSnapshotBmi(), "", true);
     addChange(changes, "bodyFat", c1.getSnapshotBodyFat(), c2.getSnapshotBodyFat(), "%", true);
     addChange(changes, "systolic", c1.getSnapshotSystolic() != null ? c1.getSnapshotSystolic().doubleValue() : null,
-      c2.getSnapshotSystolic() != null ? c2.getSnapshotSystolic().doubleValue() : null, "mmHg", true);
+            c2.getSnapshotSystolic() != null ? c2.getSnapshotSystolic().doubleValue() : null, "mmHg", true);
     addChange(changes, "glucose", c1.getSnapshotGlucose(), c2.getSnapshotGlucose(), "mg/dL", true);
     long improved = changes.values().stream().filter(v -> v instanceof Map && Boolean.TRUE.equals(((Map<?,?>)v).get("improved"))).count();
     String verdict = improved == changes.size() ? "Excellent — all metrics improved!" :
-      improved > changes.size()/2 ? "Good progress — most metrics improved." :
-        improved > 0 ? "Mixed — some improved, others need work." : "Metrics worsened — discuss with doctor.";
+            improved > changes.size()/2 ? "Good progress — most metrics improved." :
+                    improved > 0 ? "Mixed — some improved, others need work." : "Metrics worsened — discuss with doctor.";
     result.put("changes", changes); result.put("verdict", verdict);
     result.put("daysBetween", ChronoUnit.DAYS.between(c1.getScheduledAt(), c2.getScheduledAt()));
     return result;
@@ -251,7 +251,7 @@ public class ConsultationService {
     double diff = Math.round((v2 - v1) * 10.0) / 10.0;
     boolean improved = lowerBetter ? diff < 0 : diff > 0;
     changes.put(key, Map.of("from", v1, "to", v2, "change", diff, "unit", unit, "improved", improved,
-      "label", (diff > 0 ? "+" : "") + diff + " " + unit));
+            "label", (diff > 0 ? "+" : "") + diff + " " + unit));
   }
 
   private Map<String, Object> snap(Consultation c) {
@@ -390,35 +390,35 @@ public class ConsultationService {
 
     // Patient name
     String name = c.getProfile() != null
-      ? c.getProfile().getFirstName() + " " + c.getProfile().getLastName() : "";
+            ? c.getProfile().getFirstName() + " " + c.getProfile().getLastName() : "";
 
     return ConsultationResponse.builder()
-      .id(c.getId())
-      .scheduledAt(c.getScheduledAt().toString())
-      .durationMinutes(c.getDurationMinutes())
-      .status(c.getStatus())
-      .doctorName(c.getDoctorName())
-      .doctorSpecialty(c.getDoctorSpecialty())
-      .consultationType(c.getConsultationType())
-      .reason(c.getReason())
-      .priority(c.getPriority())
-      .doctorNotes(c.getDoctorNotes())
-      .diagnosis(c.getDiagnosis())
-      .prescription(c.getPrescription())
-      .followUpInstructions(c.getFollowUpInstructions())
-      .followUpDate(c.getFollowUpDate() != null ? c.getFollowUpDate().toString() : null)
-      .biometricSnapshot(bio.isEmpty() ? null : bio)
-      .goalSnapshot(goalSnap)
-      .aiSummary(c.getAiSummary())
-      .feedback(fb)
-      .rating(ratingMap)
-      .rejectionReason(c.getRejectionReason())
-      .patientName(name)
-      .reminder24hSent(c.getReminder24hSent())
-      .reminder1hSent(c.getReminder1hSent())
-      .createdAt(c.getCreatedAt().toString())
-      .completedAt(c.getCompletedAt() != null ? c.getCompletedAt().toString() : null)
-      .build();
+            .id(c.getId())
+            .scheduledAt(c.getScheduledAt().toString())
+            .durationMinutes(c.getDurationMinutes())
+            .status(c.getStatus())
+            .doctorName(c.getDoctorName())
+            .doctorSpecialty(c.getDoctorSpecialty())
+            .consultationType(c.getConsultationType())
+            .reason(c.getReason())
+            .priority(c.getPriority())
+            .doctorNotes(c.getDoctorNotes())
+            .diagnosis(c.getDiagnosis())
+            .prescription(c.getPrescription())
+            .followUpInstructions(c.getFollowUpInstructions())
+            .followUpDate(c.getFollowUpDate() != null ? c.getFollowUpDate().toString() : null)
+            .biometricSnapshot(bio.isEmpty() ? null : bio)
+            .goalSnapshot(goalSnap)
+            .aiSummary(c.getAiSummary())
+            .feedback(fb)
+            .rating(ratingMap)
+            .rejectionReason(c.getRejectionReason())
+            .patientName(name)
+            .reminder24hSent(c.getReminder24hSent())
+            .reminder1hSent(c.getReminder1hSent())
+            .createdAt(c.getCreatedAt().toString())
+            .completedAt(c.getCompletedAt() != null ? c.getCompletedAt().toString() : null)
+            .build();
   }
 
   @org.springframework.beans.factory.annotation.Value("${app.mail.test-recipient:}")
@@ -485,7 +485,7 @@ public class ConsultationService {
   public ConsultationResponse saveRating(Long consultId, Map<String, Object> data) {
     Consultation c = find(consultId);
     ConsultationRating rating = ratingRepo.findByConsultationId(consultId)
-      .orElse(ConsultationRating.builder().consultation(c).build());
+            .orElse(ConsultationRating.builder().consultation(c).build());
 
     rating.setOverallRating(((Number) data.getOrDefault("overallRating", 3)).intValue());
     if (data.containsKey("doctorKnowledgeRating"))
@@ -514,15 +514,15 @@ public class ConsultationService {
       long mins = ChronoUnit.MINUTES.between(now, c.getScheduledAt());
       if (mins <= 60 && mins > 0 && c.getReminder1hSent()) {
         result.add(Map.of(
-          "type", "1_HOUR",
-          "message", "Consultation with Dr. " + c.getDoctorName() + " in " + mins + " minutes",
-          "consultationId", c.getId()
+                "type", "1_HOUR",
+                "message", "Consultation with Dr. " + c.getDoctorName() + " in " + mins + " minutes",
+                "consultationId", c.getId()
         ));
       } else if (mins <= 1440 && mins > 60 && c.getReminder24hSent()) {
         result.add(Map.of(
-          "type", "24_HOUR",
-          "message", "Consultation with Dr. " + c.getDoctorName() + " tomorrow",
-          "consultationId", c.getId()
+                "type", "24_HOUR",
+                "message", "Consultation with Dr. " + c.getDoctorName() + " tomorrow",
+                "consultationId", c.getId()
         ));
       }
     });
