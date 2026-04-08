@@ -1,8 +1,11 @@
 package tn.esprit.peakwell.dto;
 
 import lombok.*;
+import tn.esprit.peakwell.entities.Category_Product;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @Getter
 @Setter
@@ -16,22 +19,26 @@ public class ProductRequest {
     @NotBlank
     private String description;
 
-    @Positive
+    @PositiveOrZero
     private double calories;
 
+    @PositiveOrZero
     private double protein;
+    @PositiveOrZero
     private double carbs;
+    @PositiveOrZero
     private double fats;
 
-    @NotBlank
-    private String category;
+    @NotNull
+    private Category_Product category_Product;
 
-    private String allergens;
-
+    @PositiveOrZero
     private double stock;
 
     @NotBlank
     private String unit;
 
     private String image;
+
+    private double minStock;
 }

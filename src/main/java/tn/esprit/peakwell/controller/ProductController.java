@@ -57,5 +57,20 @@ public class ProductController {
         return descriptionService.generateDescription(name, "");
     }
 
+    @PostMapping("/{id}/consume")
+    public void consumeStock(@PathVariable Long id, @RequestParam double quantity) {
+        productService.consumeStock(id, quantity);
+    }
+
+    @GetMapping("/low-stock")
+    public List<ProductDTO> getLowStockProducts() {
+        return productService.getLowStockProducts();
+    }
+
+    @PostMapping("/{id}/restock")
+    public void restock(@PathVariable Long id, @RequestParam double quantity) {
+        productService.restock(id, quantity);
+    }
+
 
 }

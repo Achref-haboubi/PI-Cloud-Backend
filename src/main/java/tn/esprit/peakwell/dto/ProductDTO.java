@@ -1,6 +1,7 @@
 package tn.esprit.peakwell.dto;
 
 import lombok.*;
+import tn.esprit.peakwell.entities.Category_Product;
 
 @Getter
 @Setter
@@ -17,9 +18,11 @@ public class ProductDTO {
     private double carbs;
     private double fats;
 
-    private String category;
-    private String allergens;
+    private Category_Product category_Product;
     private double stock;
     private String unit;
     private String image;
+
+    private double minStock;
+    private String stockStatus;
 }

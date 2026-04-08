@@ -2,7 +2,9 @@ package tn.esprit.peakwell.services;
 
 import tn.esprit.peakwell.dto.ProductDTO;
 import tn.esprit.peakwell.dto.ProductRequest;
+import tn.esprit.peakwell.entities.Category_Product;
 import tn.esprit.peakwell.entities.Product;
+import tn.esprit.peakwell.entities.StockStatus;
 import tn.esprit.peakwell.repositories.ProductRepository;
 import org.springframework.stereotype.Service;
 
@@ -23,11 +25,11 @@ public class ProductService {
         p.setProtein(dto.getProtein());
         p.setCarbs(dto.getCarbs());
         p.setFats(dto.getFats());
-        p.setCategory(dto.getCategory());
-        p.setAllergens(dto.getAllergens());
+        p.setCategory_Product(dto.getCategory_Product());
         p.setStock(dto.getStock());
         p.setUnit(dto.getUnit());
         p.setImage(dto.getImage());
+        p.setMinStock(dto.getMinStock());
 
         return p;
     }
@@ -43,11 +45,16 @@ public class ProductService {
         dto.setProtein(product.getProtein());
         dto.setCarbs(product.getCarbs());
         dto.setFats(product.getFats());
-        dto.setCategory(product.getCategory());
-        dto.setAllergens(product.getAllergens());
+        dto.setCategory_Product(product.getCategory_Product());
         dto.setStock(product.getStock());
         dto.setUnit(product.getUnit());
         dto.setImage(product.getImage());
+        dto.setStockStatus(
+            product.getStockStatus() != null 
+            ? product.getStockStatus().name() 
+            : "IN_STOCK"
+        );
+        dto.setMinStock(product.getMinStock());
 
         return dto;
     }
@@ -59,6 +66,13 @@ public class ProductService {
     public ProductDTO addProduct(ProductRequest request) {
 
         Product product = mapToEntity(request);
+
+        // Définir minStock
+
+            product.setMinStock(getDefaultMinStock(product.getCategory_Product()));
+
+        // Calculer le status
+        updateStockStatus(product);
 
         Product saved = productRepository.save(product);
 
@@ -91,11 +105,12 @@ public class ProductService {
         product.setProtein(request.getProtein());
         product.setCarbs(request.getCarbs());
         product.setFats(request.getFats());
-        product.setCategory(request.getCategory());
-        product.setAllergens(request.getAllergens());
+        product.setCategory_Product(request.getCategory_Product());
         product.setStock(request.getStock());
         product.setUnit(request.getUnit());
         product.setImage(request.getImage());
+        product.setMinStock(request.getMinStock());
+        updateStockStatus(product);
 
         Product updated = productRepository.save(product);
 
@@ -104,6 +119,62 @@ public class ProductService {
 
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
+    }
+
+    private void updateStockStatus(Product product) {
+        if (product.getStock() == 0) {
+            product.setStockStatus(StockStatus.OUT_OF_STOCK);
+        } else if (product.getStock() <= product.getMinStock()) {
+            product.setStockStatus(StockStatus.LOW_STOCK);
+        } else {
+            product.setStockStatus(StockStatus.IN_STOCK);
+        }
+    }
+
+    public void consumeStock(Long productId, double quantity) {
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (product.getStock() < quantity) {
+            throw new RuntimeException("Stock insuffisant !");
+        }
+
+        product.setStock(product.getStock() - quantity);
+
+        updateStockStatus(product);
+
+        productRepository.save(product);
+    }
+
+    public List<ProductDTO> getLowStockProducts() {
+        return productRepository.findAll()
+                .stream()
+                .filter(p -> p.getStockStatus() == StockStatus.LOW_STOCK)
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    private double getDefaultMinStock(Category_Product category) {
+        return switch (category) {
+            case PROTEIN -> 500;
+            case CARB -> 1000;
+            case FAT -> 300;
+            case VEGETABLE -> 300;
+            case DAIRY -> 400;
+        };
+    }
+
+    public void restock(Long productId, double quantity) {
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        product.setStock(product.getStock() + quantity);
+
+        updateStockStatus(product);
+
+        productRepository.save(product);
     }
 
 
