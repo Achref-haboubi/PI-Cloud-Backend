@@ -36,7 +36,7 @@ public class Product {
     @NotBlank(message = "Category is required")
     private String category;
 
-    private String allergens; // optionnel
+    private String allergens; 
 
     @PositiveOrZero(message = "Stock must be >= 0")
     private double stock;
@@ -44,5 +44,5 @@ public class Product {
     @NotBlank(message = "Unit is required")
     private String unit;
 
-    private String image; // optionnel
+    private String image; 
 }

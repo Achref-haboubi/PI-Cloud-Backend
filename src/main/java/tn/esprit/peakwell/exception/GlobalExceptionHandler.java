@@ -12,7 +12,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 🔹 VALIDATION ERRORS (@Valid)
+    // VALIDATION ERRORS
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
 
@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
-    // 🔹 CUSTOM STOCK ERROR
+    // CUSTOM STOCK ERROR
     @ExceptionHandler(StockException.class)
     public ResponseEntity<Map<String, Object>> handleStockException(StockException ex) {
 
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
-    // 🔹 GENERAL RUNTIME ERROR
+    // GENERAL RUNTIME ERROR
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
 
@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
-    // 🔹 GLOBAL ERROR (fallback)
+    // GLOBAL ERROR
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
 

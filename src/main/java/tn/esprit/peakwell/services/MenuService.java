@@ -6,6 +6,8 @@ import tn.esprit.peakwell.dto.*;
 
 import org.springframework.stereotype.Service;
 
+import jakarta.transaction.Transactional;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
@@ -21,52 +23,78 @@ public class MenuService {
         this.mealRepository = mealRepository;
     }
 
-    // ✅ CREATE MANUAL (reste avec Entity)
-    public DailyMenu createMenu(DailyMenu menu) {
+    // CREATE MANUAL
+    public DailyMenuDTO createMenu(DailyMenuRequest request) {
 
-        menu.setBreakfast(getMeal(menu.getBreakfast().getId()));
-        menu.setLunch(getMeal(menu.getLunch().getId()));
-        menu.setDinner(getMeal(menu.getDinner().getId()));
+        DailyMenu menu = new DailyMenu();
 
-        return menuRepository.save(menu);
+        menu.setDate(request.getDate());
+
+        Meal breakfast = getMeal(request.getBreakfastId());
+        Meal lunch = getMeal(request.getLunchId());
+        Meal dinner = getMeal(request.getDinnerId());
+
+        validateCategory(breakfast, "breakfast");
+        validateCategory(lunch, "lunch");
+        validateCategory(dinner, "dinner");
+
+        menu.setBreakfast(breakfast);
+        menu.setLunch(lunch);
+        menu.setDinner(dinner);
+
+        DailyMenu saved = menuRepository.save(menu);
+
+        return mapToDTO(saved);
     }
 
-    // 🔥 NEW → AUTO GENERATE MENU (RANDOM)
-    public DailyMenu generateMenu() {
+    private void validateCategory(Meal meal, String expectedCategory) {
+        if (!meal.getCategory().equalsIgnoreCase(expectedCategory)) {
+            throw new RuntimeException(
+                "Invalid meal category: expected " + expectedCategory +
+                " but got " + meal.getCategory()
+            );
+        }
+    }
+
+    // AUTO GENERATE MENU
+    @Transactional
+    public DailyMenuDTO generateMenu() {
 
         LocalDate today = LocalDate.now();
 
-        // 🔥 récupérer menu existant ou créer nouveau
         DailyMenu menu = menuRepository.findByDate(today)
                 .orElse(new DailyMenu());
 
-        // 🔥 récupérer meals (ignore case recommandé)
         List<Meal> breakfasts = mealRepository.findByCategoryIgnoreCase("breakfast");
         List<Meal> lunches = mealRepository.findByCategoryIgnoreCase("lunch");
         List<Meal> dinners = mealRepository.findByCategoryIgnoreCase("dinner");
 
         if (breakfasts.isEmpty() || lunches.isEmpty() || dinners.isEmpty()) {
-            throw new RuntimeException("Not enough meals to generate menu");
+            throw new RuntimeException("Each category must have at least one meal");
         }
 
         Random random = new Random();
 
-        // 🔥 assigner nouvelle data
         menu.setDate(today);
-        menu.setBreakfast(breakfasts.get(random.nextInt(breakfasts.size())));
-        menu.setLunch(lunches.get(random.nextInt(lunches.size())));
-        menu.setDinner(dinners.get(random.nextInt(dinners.size())));
 
-        if (menu.getId() != null) {
-            System.out.println("Menu updated for today");
-        } else {
-            System.out.println("New menu created");
-        }
+        menu.setBreakfast(
+            breakfasts.get(random.nextInt(breakfasts.size()))
+        );
 
-        return menuRepository.save(menu);
+        menu.setLunch(
+            lunches.get(random.nextInt(lunches.size()))
+        );
+
+        menu.setDinner(
+            dinners.get(random.nextInt(dinners.size()))
+        );
+
+        DailyMenu saved = menuRepository.save(menu);
+
+        return mapToDTO(saved);
     }
 
-    // 🧠 GET TODAY → DTO
+    // GET TODAY
     public DailyMenuDTO getTodayMenu() {
         DailyMenu menu = menuRepository.findByDate(LocalDate.now())
                 .orElseThrow(() -> new RuntimeException("Menu not found for today"));
@@ -74,7 +102,7 @@ public class MenuService {
         return mapToDTO(menu);
     }
 
-    // 🧠 GET ALL → DTO
+    // GET ALL
     public List<DailyMenuDTO> getAllMenus() {
         return menuRepository.findAll()
                 .stream()
@@ -82,7 +110,7 @@ public class MenuService {
                 .toList();
     }
 
-    // 🧠 GET WEEK → DTO
+    // GET WEEK
     public List<DailyMenuDTO> getWeeklyMenus() {
 
         LocalDate today = LocalDate.now();
@@ -95,7 +123,7 @@ public class MenuService {
                 .toList();
     }
 
-    // 🧠 GET BY DATE → DTO
+    // GET BY DATE
     public DailyMenuDTO getMenuByDate(LocalDate date) {
         DailyMenu menu = menuRepository.findByDate(date)
                 .orElseThrow(() -> new RuntimeException("Menu not found for this date"));
@@ -103,13 +131,13 @@ public class MenuService {
         return mapToDTO(menu);
     }
 
-    // 🔧 récupérer meal
+    // récupérer meal
     private Meal getMeal(Long id) {
         return mealRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
     }
 
-    // 🔁 MAPPER MENU → DTO
+    // MAPPER MENU
     private DailyMenuDTO mapToDTO(DailyMenu menu) {
         return new DailyMenuDTO(
                 menu.getDate(),
@@ -119,24 +147,44 @@ public class MenuService {
         );
     }
 
-    // 🔁 MAPPER MEAL → DTO
+    public void deleteMenu(Long id) {
+
+        DailyMenu menu = menuRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Menu not found"));
+
+        menuRepository.delete(menu);
+    }
+
+    // MAPPER MEAL
     private MealDTO mapMealToDTO(Meal meal) {
-        return new MealDTO(
-                meal.getId(),
-                meal.getName(),
-                meal.getCategory(),
-                meal.getTotalCalories(),
-                meal.getTotalProtein(),
-                meal.getTotalCarbs(),
-                meal.getTotalFats(),
-                meal.getTags(),
-                meal.getIngredients()
-                        .stream()
-                        .map(ing -> new IngredientDTO(
-                                ing.getProduct().getName(),
-                                ing.getQuantity()
-                        ))
-                        .toList()
+
+        if (meal == null) return null;
+
+        MealDTO dto = new MealDTO();
+
+        dto.setId(meal.getId());
+        dto.setName(meal.getName());
+        dto.setCategory(meal.getCategory());
+
+        dto.setTotalCalories(meal.getTotalCalories());
+        dto.setTotalProtein(meal.getTotalProtein());
+        dto.setTotalCarbs(meal.getTotalCarbs());
+        dto.setTotalFats(meal.getTotalFats());
+
+        dto.setTags(meal.getTags());
+
+        dto.setIngredients(
+            meal.getIngredients()
+                .stream()
+                .map(ing -> new IngredientDTO(
+                    ing.getProduct().getName(),
+                    ing.getQuantity()
+                ))
+                .toList()
         );
+
+        dto.setImage(meal.getImage());
+
+        return dto;
     }
 }
