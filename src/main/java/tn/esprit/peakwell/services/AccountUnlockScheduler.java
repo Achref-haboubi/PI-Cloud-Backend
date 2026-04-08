@@ -20,16 +20,24 @@ public class AccountUnlockScheduler {
     @Scheduled(fixedRate = 60000) 
     public void unlockAccounts() {
 
+        System.out.println("Scheduler running...");
+
         List<User> lockedUsers = userRepository.findByAccountLockedTrue();
 
-        long ONE_HOUR = 60 * 60 * 1000;
+        long ONE_HOUR = 5 * 60 * 1000;
 
         for (User user : lockedUsers) {
 
+             if (user.getLockTime() == null) continue;
+
             long diff = new Date().getTime() - user.getLockTime().getTime();
+
+            System.out.println("Checking user: " + user.getEmail() + " diff=" + diff);
 
             if (diff > ONE_HOUR) {
 
+                System.out.println("Unlocking user: " + user.getEmail());
+                
                 user.setAccountLocked(false);
                 user.setFailedAttempts(0);
                 user.setLockTime(null);

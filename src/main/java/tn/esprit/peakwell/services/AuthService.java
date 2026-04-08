@@ -254,7 +254,9 @@ public ResponseEntity<?> register(RegisterRequest request) {
 
     if (!user.isAccountLocked()) return false;
 
-    long ONE_HOUR = 60 * 60 * 1000;
+    long ONE_HOUR = 5 * 60 * 1000;
+
+      if (user.getLockTime() == null) return false; 
     long diff = new Date().getTime() - user.getLockTime().getTime();
 
     if (diff > ONE_HOUR) {

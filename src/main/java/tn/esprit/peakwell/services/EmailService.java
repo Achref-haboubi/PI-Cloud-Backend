@@ -63,7 +63,7 @@ public void sendAccountStatusEmail(String to, String subject, String templateNam
 
         sendAccountStatusEmail(
                 user.getEmail(),
-                "Your account is temporarily locked 🔒",
+                "Your account is temporarily locked",
                 "account-status",
                 vars
         );
