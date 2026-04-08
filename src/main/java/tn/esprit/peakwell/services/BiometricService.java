@@ -29,7 +29,7 @@ public class BiometricService {
 
     public BiometricResponse addEntry(BiometricRequest request) {
         double bmi = Math.round((request.getWeight() / Math.pow(request.getHeight() / 100.0, 2)) * 10.0) / 10.0;
-      MedicalProfile profile = profileRepository.findById(1L)
+      MedicalProfile profile = profileRepository.findFirstByOrderByIdAsc()
         .orElseThrow(() -> new RuntimeException("Medical profile not found. Please create your profile first."));
 
         BiometricEntry entry = BiometricEntry.builder()

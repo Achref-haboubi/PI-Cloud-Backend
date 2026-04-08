@@ -70,4 +70,13 @@ public class MedicalProfile {
 
   @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<SymptomEntry> symptomEntries = new ArrayList<>();
+
+  // ── Relations to User module ─────────────────────────────────────────
+  @OneToOne
+  @JoinColumn(name = "student_id")
+  private Student student;
+
+  @ManyToOne
+  @JoinColumn(name = "dietitian_id")
+  private Dietitian assignedDietitian;
 }

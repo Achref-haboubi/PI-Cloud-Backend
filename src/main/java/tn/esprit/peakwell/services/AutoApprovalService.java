@@ -1,0 +1,320 @@
+package tn.esprit.peakwell.services;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tn.esprit.peakwell.entities.Consultation;
+import tn.esprit.peakwell.entities.Dietitian;
+import tn.esprit.peakwell.repositories.ConsultationRepository;
+import tn.esprit.peakwell.repositories.DietitianRepository;
+import org.springframework.context.annotation.Lazy;
+
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Runs every 10 minutes and processes every PENDING_APPROVAL consultation
+ * using the following rules (in order):
+ *
+ *  1. scheduledAt is in the past               → REJECTED  (missed)
+ *  2. scheduledAt < now + 2 h                  → REJECTED  (too-last-minute)
+ *  3. scheduledAt falls outside dietitian's
+ *     working hours / days                     → REJECTED  (outside schedule)
+ *  4. Conflict with an existing UPCOMING for
+ *     the same dietitian                        → REJECTED  (slot taken)
+ *  5. scheduledAt > now + 48 h                 → UPCOMING  (auto-accepted)
+ *  6. Between 2 h and 48 h                     → left PENDING_APPROVAL (manual review)
+ */
+@Service
+@Slf4j
+public class AutoApprovalService {
+
+  private static final DateTimeFormatter FMT =
+      DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH:mm");
+
+  // Map Java DayOfWeek → the strings stored in dietitian_working_days
+  private static final Map<DayOfWeek, String> DAY_MAP = Map.of(
+      DayOfWeek.MONDAY,    "MONDAY",
+      DayOfWeek.TUESDAY,   "TUESDAY",
+      DayOfWeek.WEDNESDAY, "WEDNESDAY",
+      DayOfWeek.THURSDAY,  "THURSDAY",
+      DayOfWeek.FRIDAY,    "FRIDAY",
+      DayOfWeek.SATURDAY,  "SATURDAY",
+      DayOfWeek.SUNDAY,    "SUNDAY"
+  );
+
+  private final ConsultationRepository consultationRepo;
+  private final DietitianRepository    dietitianRepo;
+  private final EmailService           emailService;
+
+  private final SlotSuggestionService  slotSuggestionService;
+
+  @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8090/peakwell}")
+  private String baseUrl;
+
+  @org.springframework.beans.factory.annotation.Value("${app.mail.test-recipient:}")
+  private String testRecipient;
+
+  public AutoApprovalService(
+      ConsultationRepository consultationRepo,
+      DietitianRepository dietitianRepo,
+      EmailService emailService,
+      @Lazy SlotSuggestionService slotSuggestionService) {
+    this.consultationRepo    = consultationRepo;
+    this.dietitianRepo       = dietitianRepo;
+    this.emailService        = emailService;
+    this.slotSuggestionService = slotSuggestionService;
+  }
+
+  // ── Scheduled job ────────────────────────────────────────────────────────
+
+  /** Called automatically every 10 minutes by the scheduler. */
+  @Scheduled(fixedDelay = 10 * 60 * 1000)
+  @Transactional
+  public void scheduledRun() {
+    runNow();
+  }
+
+  /**
+   * Public entry point — can also be triggered on-demand from a controller.
+   * Returns a summary of what was processed.
+   */
+  @Transactional
+  public Map<String, Object> runNow() {
+    List<Consultation> pending =
+        consultationRepo.findByStatusOrderByScheduledAtAsc("PENDING_APPROVAL");
+
+    log.info("[AutoApproval] Triggered — {} PENDING_APPROVAL consultation(s) found", pending.size());
+
+    int accepted = 0, rejected = 0, leftPending = 0;
+    LocalDateTime now = LocalDateTime.now();
+
+    for (Consultation c : pending) {
+      String statusBefore = c.getStatus();
+      try {
+        evaluate(c, now);
+        String statusAfter = consultationRepo.findById(c.getId())
+            .map(Consultation::getStatus).orElse(statusBefore);
+        if ("UPCOMING".equals(statusAfter))  accepted++;
+        else if ("REJECTED".equals(statusAfter)) rejected++;
+        else leftPending++;
+      } catch (Exception ex) {
+        log.error("[AutoApproval] Error on consultation {}: {}", c.getId(), ex.getMessage());
+        leftPending++;
+      }
+    }
+
+    log.info("[AutoApproval] Done — accepted={}, rejected={}, leftPending={}", accepted, rejected, leftPending);
+    return Map.of(
+        "processed", pending.size(),
+        "accepted",  accepted,
+        "rejected",  rejected,
+        "leftPending", leftPending
+    );
+  }
+
+  // ── Core logic ────────────────────────────────────────────────────────────
+
+  public void evaluate(Consultation c, LocalDateTime now) {
+    LocalDateTime scheduled = c.getScheduledAt();
+    long minutesUntil = java.time.Duration.between(now, scheduled).toMinutes();
+
+    // Rule 1 — already in the past
+    if (scheduled.isBefore(now)) {
+      reject(c, "La consultation est passée sans confirmation.");
+      return;
+    }
+
+    // Rule 2 — less than 2 hours advance notice
+    if (minutesUntil < 120) {
+      reject(c, "Délai trop court : la réservation doit être faite au moins 2 heures à l'avance.");
+      return;
+    }
+
+    // Rule 3 — outside dietitian's working schedule
+    // Use the linked dietitian, or fall back to the first dietitian in the database
+    Dietitian d = c.getDietitian();
+    if (d == null) {
+      d = dietitianRepo.findFirstBy().orElse(null);
+    }
+
+    if (d != null) {
+      String dayKey = DAY_MAP.get(scheduled.getDayOfWeek());
+      boolean dayOff = d.getWorkingDays() == null || !d.getWorkingDays().contains(dayKey);
+
+      int hour = scheduled.getHour();
+      boolean hourOff = d.getWorkStartHour() == null || d.getWorkEndHour() == null
+          || hour < d.getWorkStartHour() || hour >= d.getWorkEndHour();
+
+      if (dayOff || hourOff) {
+        reject(c, "Le créneau demandé est en dehors des horaires de travail du nutritionniste.");
+        return;
+      }
+
+      // Rule 4 — slot conflict → add to waitlist instead of rejecting
+      int duration = c.getDurationMinutes() != null ? c.getDurationMinutes() : 60;
+      LocalDateTime windowEnd = scheduled.plusMinutes(duration);
+      if (consultationRepo.existsConflict(d.getId(), scheduled, windowEnd)) {
+        waitlist(c, d.getId());
+        return;
+      }
+    }
+
+    // Rule 5 — more than 48 hours away → auto-accept
+    if (minutesUntil > 2880) {
+      accept(c);
+      return;
+    }
+
+    // Rule 6 — between 2 h and 48 h → leave pending for manual review
+    log.info("[AutoApproval] Consultation {} left PENDING ({}h ahead — manual review window)",
+        c.getId(), minutesUntil / 60);
+  }
+
+  // ── State transitions ─────────────────────────────────────────────────────
+
+  private void waitlist(Consultation c, Long dietitianId) {
+    c.setStatus("WAITLISTED");
+    consultationRepo.save(c);
+    log.info("[AutoApproval] Consultation {} WAITLISTED (slot conflict)", c.getId());
+
+    // Compute position: count how many WAITLISTED for same dietitian come before this one
+    try {
+      List<tn.esprit.peakwell.entities.Consultation> ordered = consultationRepo.findWaitlistedByDietitian(dietitianId);
+      int position = 1;
+      for (int i = 0; i < ordered.size(); i++) {
+        if (ordered.get(i).getId().equals(c.getId())) { position = i + 1; break; }
+      }
+      String email = patientEmail(c);
+      if (email != null) {
+        emailService.sendWaitlistAdded(email, patientName(c), c.getDoctorName(), c.getScheduledAt().format(FMT), position);
+      }
+    } catch (Exception ex) {
+      log.warn("[AutoApproval] Could not send waitlist email for {}: {}", c.getId(), ex.getMessage());
+    }
+  }
+
+  /**
+   * Called when a consultation is cancelled.
+   * Promotes the highest-priority (then oldest) WAITLISTED consultation for the same dietitian
+   * whose slot is now free.
+   */
+  @org.springframework.transaction.annotation.Transactional
+  public void checkWaitlist(tn.esprit.peakwell.entities.Consultation cancelled) {
+    try {
+      Long dietitianId = cancelled.getDietitian() != null
+          ? cancelled.getDietitian().getId()
+          : dietitianRepo.findFirstBy().map(d -> d.getId()).orElse(null);
+      if (dietitianId == null) return;
+
+      List<tn.esprit.peakwell.entities.Consultation> waitlisted =
+          consultationRepo.findWaitlistedByDietitian(dietitianId);
+
+      LocalDateTime now = LocalDateTime.now();
+      for (tn.esprit.peakwell.entities.Consultation w : waitlisted) {
+        if (w.getScheduledAt().isBefore(now)) continue; // skip past slots
+
+        int dur = w.getDurationMinutes() != null ? w.getDurationMinutes() : 60;
+        LocalDateTime windowEnd = w.getScheduledAt().plusMinutes(dur);
+
+        if (!consultationRepo.existsConflict(dietitianId, w.getScheduledAt(), windowEnd)) {
+          // Promote this consultation
+          w.setStatus("UPCOMING");
+          consultationRepo.save(w);
+          log.info("[Waitlist] Consultation {} promoted from WAITLISTED to UPCOMING", w.getId());
+
+          String email = patientEmail(w);
+          if (email != null) {
+            emailService.sendWaitlistPromoted(email, patientName(w), w.getDoctorName(), w.getScheduledAt().format(FMT));
+          }
+          break; // promote only one at a time
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("[Waitlist] checkWaitlist error: {}", ex.getMessage());
+    }
+  }
+
+  private void reject(Consultation c, String reason) {
+    c.setStatus("REJECTED");
+    c.setRejectionReason(reason);
+    consultationRepo.save(c);
+    log.info("[AutoApproval] Consultation {} REJECTED — {}", c.getId(), reason);
+
+    // Compute available slots and send rejection email with alternatives
+    try {
+      Dietitian d = c.getDietitian() != null
+          ? c.getDietitian()
+          : dietitianRepo.findFirstBy().orElse(null);
+
+      if (d != null) {
+        List<String> slots = slotSuggestionService.getAvailableSlots(d.getId(), 3);
+        if (!slots.isEmpty()) {
+          slotSuggestionService.createSuggestionsAndNotify(c, slots, reason, baseUrl);
+          return; // email already sent with suggestions
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("[AutoApproval] Could not compute slot suggestions for {}: {}", c.getId(), ex.getMessage());
+    }
+
+    // Fallback: send plain rejection email (no slots available)
+    sendRejectionEmail(c, reason);
+  }
+
+  private void accept(Consultation c) {
+    c.setStatus("UPCOMING");
+    consultationRepo.save(c);
+    log.info("[AutoApproval] Consultation {} AUTO-ACCEPTED", c.getId());
+
+    sendConfirmationEmail(c);
+  }
+
+  // ── Email helpers ─────────────────────────────────────────────────────────
+
+  private String patientEmail(Consultation c) {
+    try {
+      String email = c.getProfile().getStudent().getUser().getEmail();
+      if (email != null && !email.isBlank()) return email;
+    } catch (Exception ignored) {}
+    // Fallback to configured test recipient
+    return (testRecipient != null && !testRecipient.isBlank()) ? testRecipient : null;
+  }
+
+  private String patientName(Consultation c) {
+    try {
+      var p = c.getProfile();
+      return (p.getFirstName() + " " + p.getLastName()).trim();
+    } catch (Exception e) {
+      return "Patient";
+    }
+  }
+
+  private void sendConfirmationEmail(Consultation c) {
+    String email = patientEmail(c);
+    if (email == null) return;
+    emailService.sendBookingConfirmed(
+        email,
+        patientName(c),
+        c.getDoctorName(),
+        c.getScheduledAt().format(FMT)
+    );
+  }
+
+  private void sendRejectionEmail(Consultation c, String reason) {
+    String email = patientEmail(c);
+    if (email == null) return;
+    emailService.sendBookingRejected(
+        email,
+        patientName(c),
+        c.getDoctorName(),
+        c.getScheduledAt().format(FMT),
+        reason
+    );
+  }
+}

@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/profile")
 @RequiredArgsConstructor
@@ -30,5 +32,27 @@ public class MedicalProfileController {
     @PutMapping
     public ResponseEntity<MedicalProfileResponse> updateProfile(@RequestBody MedicalProfileRequest request) {
         return ResponseEntity.ok(profileService.saveProfile(request));
+    }
+
+    /** GET /api/profile/by-student/{studentId} — fetch the profile belonging to a student */
+    @GetMapping("/by-student/{studentId}")
+    public ResponseEntity<MedicalProfileResponse> getByStudent(@PathVariable Long studentId) {
+        MedicalProfileResponse res = profileService.getProfileByStudent(studentId);
+        return res != null ? ResponseEntity.ok(res) : ResponseEntity.noContent().build();
+    }
+
+    /** GET /api/profile/by-dietitian/{dietitianId} — fetch all profiles assigned to a dietitian */
+    @GetMapping("/by-dietitian/{dietitianId}")
+    public ResponseEntity<List<MedicalProfileResponse>> getByDietitian(@PathVariable Long dietitianId) {
+        return ResponseEntity.ok(profileService.getProfilesByDietitian(dietitianId));
+    }
+
+    /** PATCH /api/profile/{id}/assign-dietitian/{dietitianId} — assign a dietitian to a profile */
+    @PatchMapping("/{id}/assign-dietitian/{dietitianId}")
+    public ResponseEntity<MedicalProfileResponse> assignDietitian(
+            @PathVariable Long id, @PathVariable Long dietitianId) {
+        MedicalProfileRequest req = new MedicalProfileRequest();
+        req.setDietitianId(dietitianId);
+        return ResponseEntity.ok(profileService.assignDietitian(id, dietitianId));
     }
 }
