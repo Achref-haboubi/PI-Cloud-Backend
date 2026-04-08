@@ -15,13 +15,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 import tn.esprit.peakwell.dto.AccountStatusUpdateRequest;
 import tn.esprit.peakwell.dto.DietitianProfile;
+import tn.esprit.peakwell.dto.FailedAttemptsStatsDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.RiskUserDTO;
+import tn.esprit.peakwell.dto.RoleStatsDTO;
 import tn.esprit.peakwell.dto.StudentProfile;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
+import tn.esprit.peakwell.dto.UserGrowthDTO;
 import tn.esprit.peakwell.dto.UserProfile;
+import tn.esprit.peakwell.dto.UserStatsDTO;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 
 
@@ -178,11 +184,11 @@ public UserProfile updateProfile(UpdateProfileRequest request,
             );
         }
 
-        // 🔥 upload files
+        //  upload files
         String imageUrl = fileUploadService.uploadFile(image, role, "profile");
         String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
 
-        // 🔥 update user fields
+        //  update user fields
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
             user.setPhoneNumber(request.getPhoneNumber());
         }
@@ -315,7 +321,7 @@ public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
         variables.put("name", user.getFirstName());
         variables.put("status", newStatus ? "ACTIVE" : "BANNED");
         variables.put("message", safeMessage);
-        variables.put("appUrl", frontendUrl); // ✅ FIXED
+        variables.put("appUrl", frontendUrl); //  FIXED
 
         //  Send email FIRST (important for consistency)
         emailService.sendAccountStatusEmail(
@@ -406,5 +412,150 @@ private UserProfile mapToUserProfile(User user) {
     return dto;
 }
 
+@Override
+    public UserStatsDTO getGlobalStats() {
+        try {
+            long total = userRepository.count();
 
+            if (total == 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No users found");
+            }
+
+            long active = userRepository.countByEnabledTrue();
+            long locked = userRepository.countByAccountLockedTrue();
+            long completed = userRepository.countByProfileCompletedTrue();
+
+            double completionRate = (completed * 100.0 / total);
+
+            return new UserStatsDTO(total, active, locked, completionRate);
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error while fetching global stats"
+            );
+        }
+    }
+
+    // --------------------------------------------------
+
+    @Override
+    public List<RoleStatsDTO> getRoleStats() {
+        try {
+            List<Object[]> results = userRepository.countUsersByRole();
+
+            if (results.isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No role statistics found");
+            }
+
+            return results.stream()
+                    .map(obj -> new RoleStatsDTO(
+                            obj[0].toString(),
+                            ((Number) obj[1]).longValue()
+                    ))
+                    .toList();
+
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error while fetching role statistics"
+            );
+        }
+    }
+
+    // --------------------------------------------------
+
+    @Override
+    public List<UserGrowthDTO> getGrowth() {
+        try {
+            List<Object[]> results = userRepository.getUserGrowth();
+
+            if (results.isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No growth data found");
+            }
+
+            return results.stream()
+                    .map(obj -> new UserGrowthDTO(
+                            obj[0].toString(),
+                            ((Number) obj[1]).longValue()
+                    ))
+                    .toList();
+
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error while fetching growth statistics"
+            );
+        }
+    }
+
+    // --------------------------------------------------
+
+    @Override
+    public List<RiskUserDTO> getTopRiskUsers() {
+        try {
+            List<Object[]> results = userRepository.getTopRiskUsers(PageRequest.of(0, 5));
+
+            if (results.isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No risky users found");
+            }
+
+            return results.stream()
+                    .map(obj -> new RiskUserDTO(
+                            (String) obj[0],
+                            ((Number) obj[1]).intValue()
+                    ))
+                    .toList();
+
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid pagination parameters"
+            );
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error while fetching risky users"
+            );
+        }
+    }
+
+    // --------------------------------------------------
+
+    @Override
+    public FailedAttemptsStatsDTO getFailedAttemptsStats() {
+        try {
+            Object resultObj = userRepository.getFailedAttemptsStats();
+
+            if (resultObj == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No failed attempts data found");
+            }
+
+            Object[] result = (Object[]) resultObj;
+
+            return new FailedAttemptsStatsDTO(
+                    ((Number) result[0]).longValue(),
+                    ((Number) result[1]).longValue(),
+                    ((Number) result[2]).longValue()
+            );
+
+        } catch (ClassCastException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid data format for failed attempts"
+            );
+        } catch (Exception ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error while fetching failed attempts stats"
+            );
+        }
+    }
 }

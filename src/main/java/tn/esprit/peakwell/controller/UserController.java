@@ -10,9 +10,14 @@ import org.springframework.http.MediaType;
 
 import tn.esprit.peakwell.dto.AccountStatusUpdateRequest;
 import tn.esprit.peakwell.dto.CurrentUserDTO;
+import tn.esprit.peakwell.dto.FailedAttemptsStatsDTO;
 import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.RiskUserDTO;
+import tn.esprit.peakwell.dto.RoleStatsDTO;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
+import tn.esprit.peakwell.dto.UserGrowthDTO;
 import tn.esprit.peakwell.dto.UserProfile;
+import tn.esprit.peakwell.dto.UserStatsDTO;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 import tn.esprit.peakwell.services.AuthService;
@@ -22,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
+@ResponseBody
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
@@ -133,5 +139,30 @@ public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestBody Ac
 public ResponseEntity<List<UserProfile>> getAllUsers() {
     return ResponseEntity.ok(userService.getAllUsers());
 }
-   
+
+ @GetMapping("/global")
+    public UserStatsDTO getGlobalStats() {
+        return userService.getGlobalStats();
     }
+
+    @GetMapping("/roles")
+    public List<RoleStatsDTO> getRoleStats() {
+        return userService.getRoleStats();
+    }
+
+    @GetMapping("/growth")
+    public List<UserGrowthDTO> getGrowth() {
+        return userService.getGrowth();
+    }
+
+    @GetMapping("/risk")
+    public List<RiskUserDTO> getRiskUsers() {
+        return userService.getTopRiskUsers();
+    }
+
+    @GetMapping("/failed-attempts")
+    public FailedAttemptsStatsDTO getFailedAttempts() {
+        return userService.getFailedAttemptsStats();
+    }
+   
+}
