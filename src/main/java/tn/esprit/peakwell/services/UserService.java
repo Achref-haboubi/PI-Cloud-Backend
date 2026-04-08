@@ -2,10 +2,12 @@ package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,7 +39,9 @@ public class UserService implements IUserService{
     private final IFileUploadService fileUploadService;
     private final KeycloakService keycloakService;
    
-    
+     @Value("${app.frontend.url}")
+     private String frontendUrl;
+
    @Override
 public void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate) {
 
@@ -272,35 +276,58 @@ public UserProfile updateProfile(UpdateProfileRequest request,
         return profile;
     }
 
-    @Override
-    public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
+   
+@Override
+@Transactional
+public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
 
     try {
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
 
-        user.setEnabled(!user.isEnabled());
+        //  Compute new status (DON’T save yet if you want strict consistency)
+        boolean newStatus = !user.isEnabled();
 
-       userRepository.save(user);
+        //  Validate subject
+        if (request.getSubject() == null || request.getSubject().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Subject is required"
+            );
+        }
 
-         String safeMessage = request.getMessage()
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;");
+        //  Validate message
+        if (request.getMessage() == null || request.getMessage().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Message is required"
+            );
+        }
 
-    Map<String, Object> variables = Map.of(
-            "name", user.getFirstName(),
-            "status", user.isEnabled() ? "ACTIVE" : "BANNED",
-            "message", safeMessage
-    );
+        //  Sanitize message
+        String safeMessage = request.getMessage()
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;");
 
-    emailService.sendAccountStatusEmail(
-            user.getEmail(),
-            request.getSubject(),
-            "account-status",
-            variables
-    );
+        //  Use HashMap (mutable)
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("name", user.getFirstName());
+        variables.put("status", newStatus ? "ACTIVE" : "BANNED");
+        variables.put("message", safeMessage);
+        variables.put("appUrl", frontendUrl); // ✅ FIXED
+
+        //  Send email FIRST (important for consistency)
+        emailService.sendAccountStatusEmail(
+                user.getEmail(),
+                request.getSubject(),
+                "account-status",
+                variables
+        );
+
+        //  Only update AFTER email success
+        user.setEnabled(newStatus);
+        userRepository.save(user);
 
     } catch (ResponseStatusException ex) {
         throw ex;
@@ -310,7 +337,7 @@ public UserProfile updateProfile(UpdateProfileRequest request,
 
         throw new ResponseStatusException(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Error while updating user status"
+                ex.getMessage()
         );
     }
 }

@@ -130,7 +130,7 @@
 
     <!-- CTA ONLY IF ACTIVE -->
     <div th:if="${status == 'ACTIVE'}">
-      <a th:href="http://localhost:4200/" class="cta">
+      <a th:href="${appUrl}" class="cta">
         Go to Platform →
       </a>
     </div>

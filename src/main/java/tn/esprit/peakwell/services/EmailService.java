@@ -25,6 +25,7 @@ public class EmailService implements IEmailService {
     private String fromEmail;
 
 
+
 @Override
 public void sendAccountStatusEmail(String to, String subject, String templateName, Map<String, Object> variables) {
 
