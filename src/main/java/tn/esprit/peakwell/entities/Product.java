@@ -41,8 +41,8 @@ public class Product {
     @PositiveOrZero(message = "Stock must be >= 0")
     private double stock;
 
-    @NotBlank(message = "Unit is required")
-    private String unit;
+    @Enumerated(EnumType.STRING)
+    private UnitType unit;
 
     private String image; 
 

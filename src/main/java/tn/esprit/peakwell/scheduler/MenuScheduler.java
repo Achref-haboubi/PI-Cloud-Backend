@@ -37,7 +37,7 @@ public class MenuScheduler {
         LocalDate today = LocalDate.now();
 
         if (menuRepository.findByDate(today).isEmpty()) {
-            menuService.generateMenu();
+            //menuService.generateMenu();
         }
     }
 }

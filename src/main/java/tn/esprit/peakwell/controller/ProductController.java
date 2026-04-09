@@ -5,10 +5,11 @@ import tn.esprit.peakwell.dto.ProductRequest;
 import tn.esprit.peakwell.services.ProductService;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-
 import java.util.List;
-
 import tn.esprit.peakwell.services.DescriptionAPIService;
+import tn.esprit.peakwell.services.NutritionService;
+import tn.esprit.peakwell.dto.NutritionResponse;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/products")
@@ -17,10 +18,12 @@ public class ProductController {
 
     private final ProductService productService;
     private final DescriptionAPIService descriptionService;
+    private final NutritionService nutritionService;
 
-    public ProductController(ProductService productService, DescriptionAPIService descriptionService) {
+    public ProductController(ProductService productService, DescriptionAPIService descriptionService, NutritionService nutritionService) {
         this.productService = productService;
         this.descriptionService = descriptionService;
+        this.nutritionService = nutritionService;
     }
 
     @PostMapping
@@ -52,9 +55,11 @@ public class ProductController {
     }
 
     @PostMapping("/generate-description")
-    public String generateDescription(@RequestParam String name) {
+    public Map<String, String> generateDescription(@RequestParam String name) {
 
-        return descriptionService.generateDescription(name, "");
+        String desc = descriptionService.generateDescription(name, "");
+
+        return Map.of("description", desc);
     }
 
     @PostMapping("/{id}/consume")
@@ -72,5 +77,9 @@ public class ProductController {
         productService.restock(id, quantity);
     }
 
+    @GetMapping("api/nutrition")
+    public NutritionResponse getNutrition(@RequestParam String name) {
+        return nutritionService.getNutrition(name);
+    }
 
 }

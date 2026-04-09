@@ -2,6 +2,7 @@ package tn.esprit.peakwell.dto;
 
 import lombok.*;
 import tn.esprit.peakwell.entities.Category_Product;
+import tn.esprit.peakwell.entities.UnitType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotNull;
@@ -35,8 +36,7 @@ public class ProductRequest {
     @PositiveOrZero
     private double stock;
 
-    @NotBlank
-    private String unit;
+    private UnitType unit;
 
     private String image;
 

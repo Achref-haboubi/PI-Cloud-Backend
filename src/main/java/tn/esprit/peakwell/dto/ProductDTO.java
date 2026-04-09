@@ -2,6 +2,7 @@ package tn.esprit.peakwell.dto;
 
 import lombok.*;
 import tn.esprit.peakwell.entities.Category_Product;
+import tn.esprit.peakwell.entities.UnitType;
 
 @Getter
 @Setter
@@ -20,7 +21,7 @@ public class ProductDTO {
 
     private Category_Product category_Product;
     private double stock;
-    private String unit;
+    private UnitType unit;
     private String image;
 
     private double minStock;
