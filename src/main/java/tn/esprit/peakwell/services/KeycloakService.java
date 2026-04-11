@@ -16,7 +16,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class KeycloakService implements IKeycloakService{
+public class KeycloakService implements IKeycloakService {
 
     private final Keycloak keycloak;
 
@@ -29,55 +29,53 @@ public class KeycloakService implements IKeycloakService{
     @Value("${app.verify-email-redirect-url}")
     private String verifyEmailRedirectUrl;
 
-   public String createUser(RegisterRequest request) {
+    public String createUser(RegisterRequest request) {
 
-    try {
+        try {
 
+            System.out.println("TOKEN = " + keycloak.tokenManager().getAccessToken().getToken());
 
+            System.out.println("EMAIL TO KEYCLOAK: " + request.getEmail());
+            System.out.println("USERNAME TO KEYCLOAK: " + request.getFirstName());
+            UserRepresentation user = new UserRepresentation();
+            user.setEnabled(true);
+            user.setEmail(request.getEmail());
+            user.setUsername(request.getEmail());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
+            user.setEmailVerified(false);
 
-        System.out.println("TOKEN = " + keycloak.tokenManager().getAccessToken().getToken());
+            CredentialRepresentation credential = new CredentialRepresentation();
+            credential.setType(CredentialRepresentation.PASSWORD);
+            credential.setValue(request.getPassword());
+            credential.setTemporary(false);
 
-                System.out.println("EMAIL TO KEYCLOAK: " + request.getEmail());
-System.out.println("USERNAME TO KEYCLOAK: " + request.getFirstName());
-        UserRepresentation user = new UserRepresentation();
-        user.setEnabled(true);
-        user.setEmail(request.getEmail());
-        user.setUsername(request.getEmail());
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEmailVerified(false);
+            user.setCredentials(List.of(credential));
 
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(request.getPassword());
-        credential.setTemporary(false);
+            Response response = keycloak.realm(realm).users().create(user);
 
-        user.setCredentials(List.of(credential));
+            if (response.getStatus() != 201) {
+                String error = response.readEntity(String.class);
+                throw new RuntimeException("Keycloak error: " + response.getStatus() + " - " + error);
+            }
 
-        Response response = keycloak.realm(realm).users().create(user);
+            String location = response.getHeaderString("Location");
+            String userId = location.substring(location.lastIndexOf("/") + 1);
 
-        if (response.getStatus() != 201) {
-            String error = response.readEntity(String.class);
-            throw new RuntimeException("Keycloak error: " + response.getStatus() + " - " + error);
+            assignRole(userId, request.getRole());
+
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .sendVerifyEmail(clientId, verifyEmailRedirectUrl);
+
+            return userId;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
-
-        String location = response.getHeaderString("Location");
-        String userId = location.substring(location.lastIndexOf("/") + 1);
-
-        assignRole(userId, request.getRole());
-
-        keycloak.realm(realm)
-        .users()
-        .get(userId)
-        .sendVerifyEmail(clientId, verifyEmailRedirectUrl);
-
-        return userId;
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        throw new RuntimeException(e.getMessage()); 
     }
-}
 
     public void deleteUser(String userId) {
         keycloak.realm(realm)
@@ -101,100 +99,90 @@ System.out.println("USERNAME TO KEYCLOAK: " + request.getFirstName());
     }
 
     @Override
-public void forgotPassword(String email) {
+    public void forgotPassword(String email) {
 
-    try {
+        try {
 
-       
-        if (email == null || email.isBlank()) {
+            if (email == null || email.isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Email must not be null or empty");
+            }
+
+            List<UserRepresentation> users = keycloak.realm(realm)
+                    .users()
+                    .search(email, true);
+
+            if (users.isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found with this email");
+            }
+
+            String userId = users.get(0).getId();
+
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .executeActionsEmail(
+                            clientId,
+                            "http://localhost:4200/auth/login",
+                            300,
+                            List.of("UPDATE_PASSWORD"));
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Email must not be null or empty"
-            );
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Internal server error while processing forgot password");
         }
-
-        List<UserRepresentation> users = keycloak.realm(realm)
-                .users()
-                .search(email, true); 
-
-        if (users.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "User not found with this email"
-            );
-        }
-
-        String userId = users.get(0).getId();
-
-        keycloak.realm(realm)
-                .users()
-                .get(userId)
-                .executeActionsEmail(
-                        clientId,
-                        "http://localhost:4200/auth/login",
-                        300,
-                        List.of("UPDATE_PASSWORD")
-                );
-
-    } catch (ResponseStatusException ex) {
-        throw ex; 
-
-    } catch (Exception e) {
-
-        e.printStackTrace();
-
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Internal server error while processing forgot password"
-        );
     }
-}
 
+    @Override
+    public void updateUserNames(String userId, String firstName, String lastName) {
 
+        try {
 
-  @Override
-public void updateUserNames(String userId, String firstName, String lastName) {
+            UserRepresentation user = keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .toRepresentation();
 
-    try {
+            if (user == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found in Keycloak");
+            }
 
-        UserRepresentation user = keycloak.realm(realm)
-                .users()
-                .get(userId)
-                .toRepresentation();
+            //  Update only if not null (PATCH behavior)
+            if (firstName != null) {
+                user.setFirstName(firstName);
+            }
 
-        if (user == null) {
+            if (lastName != null) {
+                user.setLastName(lastName);
+            }
+
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .update(user);
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "User not found in Keycloak"
-            );
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to update user in Keycloak");
         }
-
-        // 🔹 Update only if not null (PATCH behavior)
-        if (firstName != null) {
-            user.setFirstName(firstName);
-        }
-
-        if (lastName != null) {
-            user.setLastName(lastName);
-        }
-
-        keycloak.realm(realm)
-                .users()
-                .get(userId)
-                .update(user);
-
-    } catch (ResponseStatusException ex) {
-        throw ex;
-
-    } catch (Exception e) {
-        e.printStackTrace();
-
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Failed to update user in Keycloak"
-        );
     }
-}
-
 
 }

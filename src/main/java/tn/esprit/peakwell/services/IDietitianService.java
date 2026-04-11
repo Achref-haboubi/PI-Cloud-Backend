@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.DietitianProfile;
 import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
-import tn.esprit.peakwell.entities.Dietitian;
 import tn.esprit.peakwell.entities.User;
 
 @Service

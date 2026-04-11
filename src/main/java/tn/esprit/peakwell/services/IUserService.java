@@ -13,10 +13,11 @@ import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserGrowthDTO;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.dto.UserStatsDTO;
+import tn.esprit.peakwell.entities.User;
 
 public interface IUserService {
 
-    void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate);
+    User completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate);
     UserProfile  updateProfile( UpdateProfileRequest request, MultipartFile image,  MultipartFile certificate);
     UserProfile getCurrentUserProfile();
     List<UserProfile> getAllUsers();

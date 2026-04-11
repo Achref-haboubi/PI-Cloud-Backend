@@ -12,7 +12,6 @@ import tn.esprit.peakwell.entities.Dietitian;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.DietitianRepository;
 
-import lombok.RequiredArgsConstructor;
 import tn.esprit.peakwell.services.DietitianService;
 
 @Service

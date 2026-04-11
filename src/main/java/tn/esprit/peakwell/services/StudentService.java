@@ -48,7 +48,7 @@ public void updateStudentProfile(User user, UpdateProfileRequest request) {
                 HttpStatus.BAD_REQUEST, "Student profile not found");
     }
 
-    // 🔹 Validation
+    //  Validation
     if (request.getHeight() != null && request.getHeight() <= 0) {
         throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST, "Invalid height");

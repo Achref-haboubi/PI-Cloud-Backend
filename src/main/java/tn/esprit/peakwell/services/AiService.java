@@ -27,7 +27,7 @@ public class AiService implements IAiService {
     public String generateBanMessage(String reason) {
 
         try {
-            // 🔹 Build request body
+            //  Build request body
             Map<String, Object> requestBody = Map.of(
                     "model", model,
                     "messages", List.of(
@@ -35,14 +35,14 @@ public class AiService implements IAiService {
             "role", "user",
             "content",
                 "Write a professional email to inform a user that their account has been banned due to " + reason + ". " +
-"The email must:\n" +
-"- Be polite and professional\n" +
-"- Be 3 to 5 sentences\n" +
-"- Explain the reason clearly\n" +
-"- Include a support/help sentence\n" +
-"- End with 'Best regards, PeakWell Team'\n" +
-"- Do NOT include subject line\n" +
-"Return only the email body."
+                "The email must:\n" +
+                "- Be polite and professional\n" +
+                "- Be 3 to 5 sentences\n" +
+                "- Explain the reason clearly\n" +
+                "- Include a support/help sentence\n" +
+                "- End with 'Best regards, PeakWell Team'\n" +
+                "- Do NOT include subject line\n" +
+                "Return only the email body."
         )
                     )
             );

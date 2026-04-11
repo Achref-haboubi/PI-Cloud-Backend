@@ -36,42 +36,43 @@ public class UserController {
     private final UserRepository userRepository;
     private final UserService userService;
 
-
     @PostMapping("/complete-profile")
-public ResponseEntity<?> completeProfile( @ModelAttribute ProfileRequest request, @RequestPart(value = "image", required = false) MultipartFile image,@RequestPart(value = "certificate", required = false) MultipartFile certificate) {
+    public ResponseEntity<?> completeProfile(@ModelAttribute ProfileRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
-    userService.completeProfile(request, image, certificate);
+       User user = userService.completeProfile(request, image, certificate);
 
-    return ResponseEntity.ok(Map.of("message", "Profile completed successfully"));
-}
+       CurrentUserDTO dto = mapToDTO(user);
+        return  ResponseEntity.ok(dto);
+    }
 
-    
-@GetMapping("/me")
-public ResponseEntity<?> getCurrentUser() {
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
 
-    String keycloakId = authService.getCurrentUserId();
+        String keycloakId = authService.getCurrentUserId();
 
-    User user = userRepository.findByKeycloakId(keycloakId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    //  Build DTO
-    CurrentUserDTO dto = mapToDTO(user);
+        // Build DTO
+        CurrentUserDTO dto = mapToDTO(user);
 
-    //  allow if profile not completed
-    if (!dto.isProfileCompleted()) {
+        // allow if profile not completed
+        if (!dto.isProfileCompleted()) {
+            return ResponseEntity.ok(dto);
+        }
+
+        // block if completed but not enabled
+        if (!user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Account pending approval"));
+        }
+
         return ResponseEntity.ok(dto);
     }
 
-    //  block if completed but not enabled
-    if (!user.isEnabled()) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("message", "Account pending approval"));
-    }
-
-    return ResponseEntity.ok(dto);
-}
-
- @GetMapping("/profile")
+    @GetMapping("/profile")
     public ResponseEntity<?> getUserProfile() {
         try {
 
@@ -94,53 +95,48 @@ public ResponseEntity<?> getCurrentUser() {
     }
 
     @PatchMapping(value = "/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<UserProfile> updateProfile(
-        @ModelAttribute UpdateProfileRequest request,
-        @RequestPart(value = "image", required = false) MultipartFile image,
-        @RequestPart(value = "certificate", required = false) MultipartFile certificate
-) {
+    public ResponseEntity<UserProfile> updateProfile(
+            @ModelAttribute UpdateProfileRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
-    UserProfile updatedProfile =
-            userService.updateProfile(request, image, certificate);
+        UserProfile updatedProfile = userService.updateProfile(request, image, certificate);
 
-    return ResponseEntity.ok(updatedProfile);
-}
-
+        return ResponseEntity.ok(updatedProfile);
+    }
 
     private CurrentUserDTO mapToDTO(User user) {
 
-    return new CurrentUserDTO(
-            user.getId(),
-            user.getEmail(),
-            user.getFirstName(),
-            user.getLastName(),
+        return new CurrentUserDTO(
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
 
-            user.getRole() != null ? user.getRole().name() : null,
-            user.isProfileCompleted(),
-            user.isEnabled(),
+                user.getRole() != null ? user.getRole().name() : null,
+                user.isProfileCompleted(),
+                user.isEnabled(),
 
-            user.getPhoneNumber(),
-            user.getImgUrl(),
-            user.getAddress()
-    );
-}
+                user.getPhoneNumber(),
+                user.getImgUrl(),
+                user.getAddress());
+    }
 
-@PatchMapping("/{id}/toggle-status")
-public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestBody AccountStatusUpdateRequest request) {
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, @RequestBody AccountStatusUpdateRequest request) {
 
-    userService.toggleStatus(id, request);
+        userService.toggleStatus(id, request);
 
-    return ResponseEntity.ok(
-            Map.of("message", "User status updated successfully")
-    );
-}
+        return ResponseEntity.ok(
+                Map.of("message", "User status updated successfully"));
+    }
 
-@GetMapping("/all")
-public ResponseEntity<List<UserProfile>> getAllUsers() {
-    return ResponseEntity.ok(userService.getAllUsers());
-}
+    @GetMapping("/all")
+    public ResponseEntity<List<UserProfile>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
 
- @GetMapping("/global")
+    @GetMapping("/global")
     public UserStatsDTO getGlobalStats() {
         return userService.getGlobalStats();
     }
@@ -164,5 +160,5 @@ public ResponseEntity<List<UserProfile>> getAllUsers() {
     public FailedAttemptsStatsDTO getFailedAttempts() {
         return userService.getFailedAttemptsStats();
     }
-   
+
 }

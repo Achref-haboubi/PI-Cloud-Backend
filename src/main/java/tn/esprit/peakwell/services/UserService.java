@@ -29,128 +29,141 @@ import tn.esprit.peakwell.repositories.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 
-
-
 @Service
 @RequiredArgsConstructor
-public class UserService implements IUserService{
+public class UserService implements IUserService {
 
     @Autowired
-    private IEmailService emailService
-;
+    private IEmailService emailService;
     private final AuthService authService;
     private final UserRepository userRepository;
     private final StudentService studentService;
     private final DietitianService dietitianService;
     private final IFileUploadService fileUploadService;
     private final KeycloakService keycloakService;
-   
-     @Value("${app.frontend.url}")
-     private String frontendUrl;
+    private final RestaurantService restaurantService;
 
-   @Override
-public void completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate) {
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
-    try {
+    @Override
+    public User completeProfile(ProfileRequest request, MultipartFile image, MultipartFile certificate) {
 
-        String keycloakId = authService.getCurrentUserId();
+        try {
 
-        User user = userRepository.findByKeycloakId(keycloakId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "User not found"));
+            String keycloakId = authService.getCurrentUserId();
 
-        String role = request.getRole();
+            User user = userRepository.findByKeycloakId(keycloakId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "User not found"));
 
-        if (role == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Role is required");
-        }
+            String role = request.getRole();
 
-        //  Validate phone
-        if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Phone number is required");
-        }
-
-        //  Validate address
-        if (request.getAddress() == null ||
-            request.getAddress().getStreet() == null ||
-            request.getAddress().getCity() == null ||
-            request.getAddress().getPostalCode() == null ||
-            request.getAddress().getCountry() == null) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Incomplete address");
-        }
-
-        user.setPhoneNumber(request.getPhoneNumber());
-        user.setAddress(request.getAddress());
-
-        String imageUrl = fileUploadService.uploadFile(image, role, "profile");
-        String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
-
-        if ("STUDENT".equals(role)) {
-
-            if (user.getStudent() != null && user.isProfileCompleted()) {
+            if (role == null) {
                 throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Student profile already completed");
+                        HttpStatus.BAD_REQUEST, "Role is required");
             }
 
-            if (imageUrl == null) {
+            // Validate phone
+            if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()) {
                 throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Profile image is required");
+                        HttpStatus.BAD_REQUEST, "Phone number is required");
             }
 
-            user.setImgUrl(imageUrl);
-            user.setProfileCompleted(true);
+            // Validate address
+            if (request.getAddress() == null ||
+                    request.getAddress().getStreet() == null ||
+                    request.getAddress().getCity() == null ||
+                    request.getAddress().getPostalCode() == null ||
+                    request.getAddress().getCountry() == null) {
 
-            request.setImgUrl(imageUrl);
-
-            studentService.createStudent(user, request);
-
-        } else if ("DIETITIAN".equals(role)) {
-
-            if (user.getDietitian() != null && user.isProfileCompleted()) {
                 throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Dietitian profile already completed");
+                        HttpStatus.BAD_REQUEST, "Incomplete address");
             }
 
-            if (imageUrl == null || certificateUrl == null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+            user.setAddress(request.getAddress());
+
+            String imageUrl = fileUploadService.uploadFile(image, role, "profile");
+            String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
+
+            if ("STUDENT".equals(role)) {
+
+                if (user.getStudent() != null && user.isProfileCompleted()) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Student profile already completed");
+                }
+
+                if (imageUrl == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Profile image is required");
+                }
+
+                user.setImgUrl(imageUrl);
+                user.setProfileCompleted(true);
+
+                request.setImgUrl(imageUrl);
+
+                studentService.createStudent(user, request);
+
+            } else if ("DIETITIAN".equals(role)) {
+
+                if (user.getDietitian() != null && user.isProfileCompleted()) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Dietitian profile already completed");
+                }
+
+                if (imageUrl == null || certificateUrl == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Profile image and certificate are required");
+                }
+
+                user.setImgUrl(imageUrl);
+                user.setProfileCompleted(true);
+
+                request.setImgUrl(imageUrl);
+                request.setCertification(certificateUrl);
+
+                dietitianService.createDietitian(user, request);
+
+            } else if ("RESTAURANT".equals(role)) {
+
+                if (user.getRestaurant() != null && user.isProfileCompleted()) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Restaurant profile already completed");
+                }
+
+                if (imageUrl == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Profile image is required");
+                }
+
+                user.setImgUrl(imageUrl);
+                user.setProfileCompleted(true);
+
+                restaurantService.createRestaurant(user);
+            } else {
                 throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Profile image and certificate are required");
+                        HttpStatus.BAD_REQUEST, "Invalid role");
             }
 
-            user.setImgUrl(imageUrl);
-            user.setEnabled(false);
-            user.setProfileCompleted(true);
+            return userRepository.save(user);
 
-            request.setImgUrl(imageUrl);
-            request.setCertification(certificateUrl);
+        } catch (ResponseStatusException ex) {
+            throw ex;
 
-            dietitianService.createDietitian(user, request);
+        } catch (Exception ex) {
+            ex.printStackTrace();
 
-        } else {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Invalid role");
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Something went wrong. Please try again later.");
         }
-
-        userRepository.save(user);
-
-    } catch (ResponseStatusException ex) {
-        throw ex;
-
-    } catch (Exception ex) {
-        ex.printStackTrace();
-
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Something went wrong. Please try again later."
-        );
+        
     }
-}
 
-public UserProfile updateProfile(UpdateProfileRequest request,
+    public UserProfile updateProfile(UpdateProfileRequest request,
                                  MultipartFile image,
                                  MultipartFile certificate) {
 
@@ -166,6 +179,7 @@ public UserProfile updateProfile(UpdateProfileRequest request,
 
         boolean nameUpdated = false;
 
+        //  Update names
         if (request.getFirstName() != null) {
             user.setFirstName(request.getFirstName());
             nameUpdated = true;
@@ -180,15 +194,22 @@ public UserProfile updateProfile(UpdateProfileRequest request,
             keycloakService.updateUserNames(
                     keycloakId,
                     user.getFirstName(),
-                    user.getLastName()
-            );
+                    user.getLastName());
         }
 
-        //  upload files
-        String imageUrl = fileUploadService.uploadFile(image, role, "profile");
-        String certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
+        //  Upload files
+        String imageUrl = null;
+        String certificateUrl = null;
 
-        //  update user fields
+        if (image != null && !image.isEmpty()) {
+            imageUrl = fileUploadService.uploadFile(image, role, "profile");
+        }
+
+        if (certificate != null && !certificate.isEmpty()) {
+            certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
+        }
+
+        //  Update basic user info
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
             user.setPhoneNumber(request.getPhoneNumber());
         }
@@ -198,14 +219,15 @@ public UserProfile updateProfile(UpdateProfileRequest request,
         }
 
         if (imageUrl != null) {
-            user.setImgUrl(imageUrl); // ✅ FIX (not request)
+            user.setImgUrl(imageUrl);
         }
 
         if (certificateUrl != null) {
             request.setCertification(certificateUrl);
         }
 
-        // 🔥 role logic
+        // 🔥 ROLE HANDLING
+
         if ("STUDENT".equals(role)) {
 
             if (user.getStudent() == null) {
@@ -215,7 +237,9 @@ public UserProfile updateProfile(UpdateProfileRequest request,
 
             studentService.updateStudentProfile(user, request);
 
-        } else if ("DIETITIAN".equals(role)) {
+        }
+
+        else if ("DIETITIAN".equals(role)) {
 
             if (user.getDietitian() == null) {
                 throw new ResponseStatusException(
@@ -224,14 +248,36 @@ public UserProfile updateProfile(UpdateProfileRequest request,
 
             dietitianService.updateDietitianProfile(user, request);
 
-        } else {
+        }
+
+        else if ("RESTAURANT".equals(role)) {
+
+            if (user.getRestaurant() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Restaurant profile not found");
+            }
+
+            // ✅ If you have restaurant fields later
+            // restaurantService.updateRestaurantProfile(user, request);
+
+            // 👉 For now: nothing extra (only contact info already updated)
+
+        }
+
+        else if ("ADMIN".equals(role)) {
+
+            // ✅ Admin only updates basic info (name, phone, address, image)
+            // 👉 No extra entity
+
+        }
+
+        else {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Invalid role");
         }
 
         userRepository.save(user);
 
-        //  RETURN UPDATED PROFILE
         return mapToUserProfile(user);
 
     } catch (ResponseStatusException ex) {
@@ -242,8 +288,7 @@ public UserProfile updateProfile(UpdateProfileRequest request,
 
         throw new ResponseStatusException(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Something went wrong while updating profile"
-        );
+                "Something went wrong while updating profile");
     }
 }
 
@@ -251,13 +296,13 @@ public UserProfile updateProfile(UpdateProfileRequest request,
     @Transactional(readOnly = true)
     public UserProfile getCurrentUserProfile() {
 
-        //  Get current user
+        // Get current user
         String keycloakId = authService.getCurrentUserId();
 
         User user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        //  Basic mapping
+        // Basic mapping
         UserProfile profile = new UserProfile();
         profile.setId(user.getId());
         profile.setEmail(user.getEmail());
@@ -270,7 +315,7 @@ public UserProfile updateProfile(UpdateProfileRequest request,
         profile.setImageUrl(user.getImgUrl());
         profile.setAddress(user.getAddress());
 
-        //  Delegate to services
+        // Delegate to services
         if (user.getRole().toString().equals("STUDENT")) {
             profile.setStudentProfile(studentService.getStudentProfile(user));
         }
@@ -282,137 +327,129 @@ public UserProfile updateProfile(UpdateProfileRequest request,
         return profile;
     }
 
-   
-@Override
-@Transactional
-public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
+    @Override
+    @Transactional
+    public void toggleStatus(Long userId, AccountStatusUpdateRequest request) {
 
-    try {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "User not found"));
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "User not found"));
 
-        //  Compute new status (DON’T save yet if you want strict consistency)
-        boolean newStatus = !user.isEnabled();
+            // Compute new status (DON’T save yet if you want strict consistency)
+            boolean newStatus = !user.isEnabled();
 
-        //  Validate subject
-        if (request.getSubject() == null || request.getSubject().isBlank()) {
+            // Validate subject
+            if (request.getSubject() == null || request.getSubject().isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Subject is required");
+            }
+
+            // Validate message
+            if (request.getMessage() == null || request.getMessage().isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Message is required");
+            }
+
+            // Sanitize message
+            String safeMessage = request.getMessage()
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;");
+
+            // Use HashMap (mutable)
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("name", user.getFirstName());
+            variables.put("status", newStatus ? "ACTIVE" : "BANNED");
+            variables.put("message", safeMessage);
+            variables.put("appUrl", frontendUrl); // FIXED
+
+            // Send email FIRST (important for consistency)
+            emailService.sendAccountStatusEmail(
+                    user.getEmail(),
+                    request.getSubject(),
+                    "account-status",
+                    variables);
+
+            // Only update AFTER email success
+            user.setEnabled(newStatus);
+            userRepository.save(user);
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Subject is required"
-            );
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    ex.getMessage());
+        }
+    }
+
+    @Override
+    public List<UserProfile> getAllUsers() {
+
+        List<User> users = userRepository.findAllWithProfiles();
+
+        return users.stream()
+                .map(this::mapToUserProfile)
+                .toList();
+    }
+
+    private UserProfile mapToUserProfile(User user) {
+
+        UserProfile dto = new UserProfile();
+
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setFirstName(user.getFirstName());
+        dto.setLastName(user.getLastName());
+        dto.setRole(user.getRole().name());
+        dto.setProfileCompleted(user.isProfileCompleted());
+
+        dto.setEnabled(user.isEnabled());
+        dto.setPhoneNumber(user.getPhoneNumber());
+        dto.setImageUrl(user.getImgUrl());
+        dto.setAddress(user.getAddress());
+
+        // Student
+        if (user.getStudent() != null) {
+
+            StudentProfile sp = new StudentProfile();
+
+            sp.setWeight(user.getStudent().getWeight() != null
+                    ? user.getStudent().getWeight().doubleValue()
+                    : null);
+
+            sp.setHeight(user.getStudent().getHeight() != null
+                    ? user.getStudent().getHeight().doubleValue()
+                    : null);
+
+            sp.setActivityLevel(user.getStudent().getActivityLevel());
+            sp.setGoal(user.getStudent().getGoal());
+
+            dto.setStudentProfile(sp);
         }
 
-        //  Validate message
-        if (request.getMessage() == null || request.getMessage().isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Message is required"
-            );
+        if (user.getDietitian() != null) {
+
+            DietitianProfile dp = new DietitianProfile();
+
+            dp.setSpecialization(user.getDietitian().getSpecialization());
+            dp.setExperienceYears(user.getDietitian().getExperienceYears());
+            dp.setConsultationPrice(user.getDietitian().getConsultationPrice());
+            dp.setLinkUrl(user.getDietitian().getLinkUrl());
+            dp.setCertificateUrl(user.getDietitian().getCertification());
+
+            dto.setDietitianProfile(dp);
         }
 
-        //  Sanitize message
-        String safeMessage = request.getMessage()
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;");
-
-        //  Use HashMap (mutable)
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("name", user.getFirstName());
-        variables.put("status", newStatus ? "ACTIVE" : "BANNED");
-        variables.put("message", safeMessage);
-        variables.put("appUrl", frontendUrl); //  FIXED
-
-        //  Send email FIRST (important for consistency)
-        emailService.sendAccountStatusEmail(
-                user.getEmail(),
-                request.getSubject(),
-                "account-status",
-                variables
-        );
-
-        //  Only update AFTER email success
-        user.setEnabled(newStatus);
-        userRepository.save(user);
-
-    } catch (ResponseStatusException ex) {
-        throw ex;
-
-    } catch (Exception ex) {
-        ex.printStackTrace();
-
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                ex.getMessage()
-        );
-    }
-}
-
-  @Override
-   public List<UserProfile> getAllUsers() {
-
-    List<User> users = userRepository.findAllWithProfiles();
-
-    return users.stream()
-            .map(this::mapToUserProfile)
-            .toList();
-}
-
-
-private UserProfile mapToUserProfile(User user) {
-
-    UserProfile dto = new UserProfile();
-
-    dto.setId(user.getId());
-    dto.setEmail(user.getEmail());
-    dto.setFirstName(user.getFirstName());
-    dto.setLastName(user.getLastName());
-    dto.setRole(user.getRole().name());
-    dto.setProfileCompleted(user.isProfileCompleted());
-
-    
-    dto.setEnabled(user.isEnabled());
-    dto.setPhoneNumber(user.getPhoneNumber());
-    dto.setImageUrl(user.getImgUrl());
-    dto.setAddress(user.getAddress());
-
-    // Student
-    if (user.getStudent() != null) {
-
-        StudentProfile sp = new StudentProfile();
-
-        sp.setWeight(user.getStudent().getWeight() != null
-                ? user.getStudent().getWeight().doubleValue()
-                : null);
-
-        sp.setHeight(user.getStudent().getHeight() != null
-                ? user.getStudent().getHeight().doubleValue()
-                : null);
-
-        sp.setActivityLevel(user.getStudent().getActivityLevel());
-        sp.setGoal(user.getStudent().getGoal());
-
-        dto.setStudentProfile(sp);
+        return dto;
     }
 
-    
-    if (user.getDietitian() != null) {
-
-        DietitianProfile dp = new DietitianProfile();
-
-        dp.setSpecialization(user.getDietitian().getSpecialization());
-        dp.setExperienceYears(user.getDietitian().getExperienceYears());
-        dp.setConsultationPrice(user.getDietitian().getConsultationPrice());
-        dp.setLinkUrl(user.getDietitian().getLinkUrl());
-        dp.setCertificateUrl(user.getDietitian().getCertification());
-
-        dto.setDietitianProfile(dp);
-    }
-
-    return dto;
-}
-
-@Override
+    @Override
     public UserStatsDTO getGlobalStats() {
         try {
             long total = userRepository.count();
@@ -435,8 +472,7 @@ private UserProfile mapToUserProfile(User user) {
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error while fetching global stats"
-            );
+                    "Error while fetching global stats");
         }
     }
 
@@ -455,15 +491,13 @@ private UserProfile mapToUserProfile(User user) {
             return results.stream()
                     .map(obj -> new RoleStatsDTO(
                             obj[0].toString(),
-                            ((Number) obj[1]).longValue()
-                    ))
+                            ((Number) obj[1]).longValue()))
                     .toList();
 
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error while fetching role statistics"
-            );
+                    "Error while fetching role statistics");
         }
     }
 
@@ -482,15 +516,13 @@ private UserProfile mapToUserProfile(User user) {
             return results.stream()
                     .map(obj -> new UserGrowthDTO(
                             obj[0].toString(),
-                            ((Number) obj[1]).longValue()
-                    ))
+                            ((Number) obj[1]).longValue()))
                     .toList();
 
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error while fetching growth statistics"
-            );
+                    "Error while fetching growth statistics");
         }
     }
 
@@ -509,20 +541,17 @@ private UserProfile mapToUserProfile(User user) {
             return results.stream()
                     .map(obj -> new RiskUserDTO(
                             (String) obj[0],
-                            ((Number) obj[1]).intValue()
-                    ))
+                            ((Number) obj[1]).intValue()))
                     .toList();
 
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Invalid pagination parameters"
-            );
+                    "Invalid pagination parameters");
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error while fetching risky users"
-            );
+                    "Error while fetching risky users");
         }
     }
 
@@ -543,19 +572,16 @@ private UserProfile mapToUserProfile(User user) {
             return new FailedAttemptsStatsDTO(
                     ((Number) result[0]).longValue(),
                     ((Number) result[1]).longValue(),
-                    ((Number) result[2]).longValue()
-            );
+                    ((Number) result[2]).longValue());
 
         } catch (ClassCastException ex) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Invalid data format for failed attempts"
-            );
+                    "Invalid data format for failed attempts");
         } catch (Exception ex) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error while fetching failed attempts stats"
-            );
+                    "Error while fetching failed attempts stats");
         }
     }
 }

@@ -70,4 +70,7 @@ public class User {
     @JsonIgnore
     Dietitian dietitian;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
+    Restaurant restaurant;
 }

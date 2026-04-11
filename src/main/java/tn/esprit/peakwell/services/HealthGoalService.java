@@ -3,7 +3,6 @@ package tn.esprit.peakwell.services;
 import tn.esprit.peakwell.dto.HealthGoalRequest;
 import tn.esprit.peakwell.dto.HealthGoalResponse;
 import tn.esprit.peakwell.dto.HealthGoalResponse.MilestoneResponse;
-import tn.esprit.peakwell.entities.BiometricEntry;
 import tn.esprit.peakwell.entities.GoalMilestone;
 import tn.esprit.peakwell.entities.HealthGoal;
 import tn.esprit.peakwell.entities.MedicalProfile;
