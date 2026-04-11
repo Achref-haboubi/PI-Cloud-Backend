@@ -27,10 +27,25 @@ public class MenuController {
         return menuService.createMenu(request);
     }
 
-    // AUTO GENERATE MENU
+    // 🔥 Générer semaine actuelle
+    @PostMapping("/generate-current-week")
+    public String generateCurrentWeek() {
+        menuService.generateCurrentWeek();
+        return "✅ Semaine actuelle générée";
+    }
+
+    // 🔥 Générer semaine suivante
+    @PostMapping("/generate-next-week")
+    public String generateNextWeek() {
+        menuService.generateNextWeek();
+        return "✅ Semaine suivante générée";
+    }
+
+    // 🔥 Générer semaine personnalisée (TRÈS PRO)
     @PostMapping("/generate")
-    public DailyMenuDTO generateMenu() {
-        return menuService.generateMenu();
+    public List<DailyMenuDTO> generateWeekFromDate(@RequestParam String startDate) {
+        LocalDate start = LocalDate.parse(startDate);
+        return menuService.generateWeeklyMenu(start);
     }
 
     // GET TODAY

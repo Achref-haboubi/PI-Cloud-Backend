@@ -20,24 +20,39 @@ public class MenuScheduler {
         this.menuRepository = menuRepository;
     }
 
-    // Génération automatique chaque jour à minuit
-    @Scheduled(cron = "0 0 0 * * ?")
-    public void generateDailyMenu() {
+    // ✅ Vérifie si semaine complète
+    private boolean isWeekGenerated(LocalDate start) {
+        LocalDate end = start.plusDays(6);
+        long count = menuRepository.countByDateBetween(start, end);
+        return count >= 7;
+    }
 
-        LocalDate today = LocalDate.now();
+    // 🔥 SAMEDI 00:00 → semaine suivante
+    @Scheduled(cron = "0 0 0 ? * SAT")
+    public void generateNextWeekMenus() {
 
-        if (menuRepository.findByDate(today).isEmpty()) {
-            menuService.generateMenu();
+        LocalDate nextWeek = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY)
+                .plusWeeks(1);
+
+        if (!isWeekGenerated(nextWeek)) {
+            System.out.println("📅 Génération semaine prochaine...");
+            menuService.generateWeeklyMenu(nextWeek);
         }
     }
 
+    // 🚀 AU DÉMARRAGE → semaine actuelle
     @PostConstruct
     public void generateMenuAtStartup() {
 
-        LocalDate today = LocalDate.now();
+        LocalDate currentWeek = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY);
 
-        if (menuRepository.findByDate(today).isEmpty()) {
-            //menuService.generateMenu();
+        if (!isWeekGenerated(currentWeek)) {
+            System.out.println("🔥 Génération semaine actuelle...");
+            menuService.generateWeeklyMenu(currentWeek);
+        } else {
+            System.out.println("✅ Semaine déjà générée");
         }
     }
 }

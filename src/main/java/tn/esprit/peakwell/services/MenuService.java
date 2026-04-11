@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Collections;
 
 @Service
 public class MenuService {
@@ -58,12 +60,9 @@ public class MenuService {
 
     // AUTO GENERATE MENU
     @Transactional
-    public DailyMenuDTO generateMenu() {
+    public List<DailyMenuDTO> generateWeeklyMenu(LocalDate startOfWeek) {
 
-        LocalDate today = LocalDate.now();
-
-        DailyMenu menu = menuRepository.findByDate(today)
-                .orElse(new DailyMenu());
+        List<DailyMenuDTO> weekMenus = new ArrayList<>();
 
         List<Meal> breakfasts = mealRepository.findByCategoryIgnoreCase("breakfast");
         List<Meal> lunches = mealRepository.findByCategoryIgnoreCase("lunch");
@@ -73,25 +72,44 @@ public class MenuService {
             throw new RuntimeException("Each category must have at least one meal");
         }
 
-        Random random = new Random();
+        Collections.shuffle(breakfasts);
+        Collections.shuffle(lunches);
+        Collections.shuffle(dinners);
 
-        menu.setDate(today);
+        for (int i = 0; i < 7; i++) {
 
-        menu.setBreakfast(
-            breakfasts.get(random.nextInt(breakfasts.size()))
-        );
+            LocalDate date = startOfWeek.plusDays(i);
 
-        menu.setLunch(
-            lunches.get(random.nextInt(lunches.size()))
-        );
+            // ✅ éviter duplication
+            if (menuRepository.findByDate(date).isPresent()) {
+                continue;
+            }
 
-        menu.setDinner(
-            dinners.get(random.nextInt(dinners.size()))
-        );
+            DailyMenu menu = new DailyMenu();
+            menu.setDate(date);
 
-        DailyMenu saved = menuRepository.save(menu);
+            menu.setBreakfast(breakfasts.get(i % breakfasts.size()));
+            menu.setLunch(lunches.get(i % lunches.size()));
+            menu.setDinner(dinners.get(i % dinners.size()));
 
-        return mapToDTO(saved);
+            DailyMenu saved = menuRepository.save(menu);
+            weekMenus.add(mapToDTO(saved));
+        }
+
+        return weekMenus;
+    }
+
+    public void generateCurrentWeek() {
+        LocalDate start = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+        generateWeeklyMenu(start);
+    }
+
+    public void generateNextWeek() {
+        LocalDate nextWeek = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY)
+                .plusWeeks(1);
+
+        generateWeeklyMenu(nextWeek);
     }
 
     // GET TODAY
