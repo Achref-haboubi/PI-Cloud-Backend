@@ -11,6 +11,12 @@ import java.util.regex.Pattern;
 @Service
 public class ContentModerationService {
 
+    private final EmailService emailService;
+
+    public ContentModerationService(EmailService emailService) {
+        this.emailService = emailService;
+    }
+
     // Comprehensive list of inappropriate words (French + English)
     private static final List<String> INAPPROPRIATE_WORDS = List.of(
             // English - Mild
@@ -87,6 +93,28 @@ public class ContentModerationService {
                     "*".repeat(word.length())
             );
         }
+        return result;
+    }
+
+    // Check content AND send email notification to admin
+    public ModerationResult checkContentAndNotify(
+            String content,
+            String author,
+            String articleId) {
+
+        ModerationResult result = checkContent(content);
+
+        if (!result.isAllowed()) {
+            // Send email notification to admin asynchronously
+            emailService.sendInappropriateContentAlert(
+                content,
+                author,
+                articleId,
+                result.getCategory(),
+                result.getDetectedWords()
+            );
+        }
+
         return result;
     }
 }

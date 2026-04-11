@@ -37,8 +37,12 @@ public class CommentService {
 
     // ✅ ADD COMMENT
     public Comment addComment(Long articleId, CommentDTO commentDTO) {
-        // Check content FIRST
-        ModerationResult moderation = contentModerationService.checkContent(commentDTO.getContent());
+        // Check content FIRST and send email notification
+        ModerationResult moderation = contentModerationService.checkContentAndNotify(
+            commentDTO.getContent(),
+            commentDTO.getAuthor(),
+            articleId.toString()
+        );
 
         if (!moderation.isAllowed()) {
             throw new InappropriateContentException(
@@ -72,8 +76,12 @@ public class CommentService {
 
     // ✅ ADD REPLY
     public CommentDTO addReply(Long articleId, Long parentCommentId, CommentDTO dto) {
-        // Check content FIRST
-        ModerationResult moderation = contentModerationService.checkContent(dto.getContent());
+        // Check content FIRST and send email notification
+        ModerationResult moderation = contentModerationService.checkContentAndNotify(
+            dto.getContent(),
+            dto.getAuthor(),
+            articleId.toString()
+        );
 
         if (!moderation.isAllowed()) {
             throw new InappropriateContentException(
