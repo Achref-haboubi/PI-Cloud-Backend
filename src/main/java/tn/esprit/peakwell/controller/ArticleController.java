@@ -90,7 +90,7 @@ public class ArticleController {
         article.setContent(content);
         article.setAuthor(author);
         article.setImageUrl(imageUrl);
-        article.setEmbedUrl(embedUrl);
+            article.setEmbedUrl(embedUrl);
 
         Article updatedArticle = articleService.updateArticle(id, article);
         return articleService.mapArticleToDTO(updatedArticle);  
@@ -129,5 +129,18 @@ public class ArticleController {
                     .body(resource);
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<ArticleDTO>> searchArticles(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) String dateFilter,
+            @RequestParam(required = false, defaultValue = "recent") String sortBy,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "9") int size) {
+
+        return ResponseEntity.ok(
+                articleService.searchArticles(search, author, dateFilter, sortBy, page, size));
     }
 }

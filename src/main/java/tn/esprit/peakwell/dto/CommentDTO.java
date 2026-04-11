@@ -3,6 +3,7 @@ package tn.esprit.peakwell.dto;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -15,4 +16,8 @@ public class CommentDTO {
     private String author;
     private LocalDateTime createdAt;
     private Long articleId;
+    private Long parentCommentId;
+    private List<CommentDTO> replies;
+    private int upvotes;
+    private int downvotes;
 }

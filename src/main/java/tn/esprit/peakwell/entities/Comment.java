@@ -1,12 +1,14 @@
 package tn.esprit.peakwell.entities;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -29,6 +31,19 @@ public class Comment {
     @JoinColumn(name = "article_id", nullable = false)
     @JsonBackReference
     private Article article;
+
+    @ManyToOne
+    @JoinColumn(name = "parent_id")
+    private Comment parentComment;
+
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
+    private List<Comment> replies;
+
+    @Column(nullable = false)
+    private int upvotes = 0;
+
+    @Column(nullable = false)
+    private int downvotes = 0;
 
     @PrePersist
     protected void onCreate() {
