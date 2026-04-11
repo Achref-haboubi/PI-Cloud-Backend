@@ -16,19 +16,19 @@ import java.util.List;
 @ToString(exclude = "patients")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Dietitian {
-
   @Id
   Long id;
 
   @OneToOne
+  @JsonIgnore
   @MapsId
   @JoinColumn(name = "id")
   User user;
 
+
   String specialization;
   String certification;
   String linkUrl;
-
   Integer experienceYears;
   Double consultationPrice;
 

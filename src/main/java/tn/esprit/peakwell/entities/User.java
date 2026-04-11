@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 
 import java.util.Date;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -20,34 +22,52 @@ public class User {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   Long id;
 
+  //  Link with Keycloak
+  @Column(unique = true, nullable = false)
+  String keycloakId;
+
   @Column(unique = true, nullable = false)
   String email;
 
-  @Column(nullable = false)
-  String password;
-
   String firstName;
   String lastName;
-  Integer age;
+  String phoneNumber;
+  String imgUrl;
+  @Embedded
+  Address address;
+
+  @Temporal(TemporalType.TIMESTAMP)
+  Date createdAt;
+
+  //  Automatically executed before INSERT
+  @PrePersist
+  public void prePersist() {
+    this.createdAt = new Date();
+  }
 
   @Enumerated(EnumType.STRING)
   Role role;
 
-  boolean enabled;
-  boolean profileCompleted;
+  @Column(nullable = false)
+  boolean enabled = true;
 
-  Date createdAt;
+  @Column(nullable = false)
+  boolean profileCompleted = false;
 
-  @PrePersist
-  public void prePersist() {
-    this.createdAt = new Date();
-    this.enabled = false;
-    this.profileCompleted = false;
-  }
+  int failedAttempts = 0;
+  int totalFailedAttempts = 0;
+
+  boolean accountLocked = false;
+
+  @Temporal(TemporalType.TIMESTAMP)
+  Date lockTime;
 
   @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+  @JsonIgnore
   Student student;
 
   @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+  @JsonIgnore
   Dietitian dietitian;
+
 }

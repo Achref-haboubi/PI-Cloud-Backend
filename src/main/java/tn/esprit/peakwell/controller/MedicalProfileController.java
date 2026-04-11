@@ -1,9 +1,10 @@
 package tn.esprit.peakwell.controller;
 
-
 import tn.esprit.peakwell.dto.MedicalProfileRequest;
 import tn.esprit.peakwell.dto.MedicalProfileResponse;
-import tn.esprit.peakwell.security.JwtUtils;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.UserRepository;
+import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.MedicalProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,37 +19,31 @@ import java.util.List;
 public class MedicalProfileController {
 
     private final MedicalProfileService profileService;
-    private final JwtUtils jwtUtils;
+    private final AuthService authService;
+    private final UserRepository userRepository;
 
-    /** Extract userId from JWT, or fall back to 1 if no token present (dev mode). */
-    private Long resolveUserId(String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            try {
-                return jwtUtils.extractUserId(authHeader.substring(7));
-            } catch (Exception ignored) {}
-        }
-        return 1L;
+    /** Resolve the current user's DB id from the Keycloak JWT in the security context. */
+    private Long resolveUserId() {
+        String keycloakId = authService.getCurrentUserId();
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found for keycloakId: " + keycloakId));
+        return user.getId();
     }
 
     @GetMapping
-    public ResponseEntity<MedicalProfileResponse> getProfile(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        MedicalProfileResponse profile = profileService.getProfile(resolveUserId(authHeader));
+    public ResponseEntity<MedicalProfileResponse> getProfile() {
+        MedicalProfileResponse profile = profileService.getProfile(resolveUserId());
         return profile != null ? ResponseEntity.ok(profile) : ResponseEntity.noContent().build();
     }
 
     @PostMapping
-    public ResponseEntity<MedicalProfileResponse> saveProfile(
-            @RequestBody MedicalProfileRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return ResponseEntity.ok(profileService.saveProfile(request, resolveUserId(authHeader)));
+    public ResponseEntity<MedicalProfileResponse> saveProfile(@RequestBody MedicalProfileRequest request) {
+        return ResponseEntity.ok(profileService.saveProfile(request, resolveUserId()));
     }
 
     @PutMapping
-    public ResponseEntity<MedicalProfileResponse> updateProfile(
-            @RequestBody MedicalProfileRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return ResponseEntity.ok(profileService.saveProfile(request, resolveUserId(authHeader)));
+    public ResponseEntity<MedicalProfileResponse> updateProfile(@RequestBody MedicalProfileRequest request) {
+        return ResponseEntity.ok(profileService.saveProfile(request, resolveUserId()));
     }
 
     /** GET /api/profile/all — fetch all medical profiles (nutritionist view) */

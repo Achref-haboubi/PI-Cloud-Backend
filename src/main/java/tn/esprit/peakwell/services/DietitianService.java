@@ -1,97 +1,105 @@
 package tn.esprit.peakwell.services;
 
-import tn.esprit.peakwell.dto.DietitianProfileRequest;
-import tn.esprit.peakwell.entities.Role;
-import tn.esprit.peakwell.entities.User;
-import tn.esprit.peakwell.entities.Dietitian;
-import tn.esprit.peakwell.repositories.ConsultationRatingRepository;
-import tn.esprit.peakwell.repositories.DietitianRepository;
-import tn.esprit.peakwell.repositories.userRepository;
-import tn.esprit.peakwell.security.JwtUtils;
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import tn.esprit.peakwell.dto.DietitianProfile;
+import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.UpdateProfileRequest;
+import tn.esprit.peakwell.entities.Dietitian;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.DietitianRepository;
+
+import lombok.RequiredArgsConstructor;
+import tn.esprit.peakwell.services.DietitianService;
 
 @Service
-@AllArgsConstructor
-public class DietitianService implements IDietitianService {
+public class DietitianService implements IDietitianService{
+
   @Autowired
   DietitianRepository dietitianRepository;
-  userRepository userRepository;
-  private final JwtUtils jwtUtils;
-  ConsultationRatingRepository ratingRepository;
-
 
   @Override
-  public Dietitian completeDietitianProfile(String token, DietitianProfileRequest request) {
+  public void createDietitian(User user, ProfileRequest request) {
 
-    //  Extract userId
-    Long userId = jwtUtils.extractUserId(token);
+    Dietitian dietitian = user.getDietitian();
 
-    //  Get user
-    User user = userRepository.findById(userId)
-      .orElseThrow(() -> new RuntimeException("User not found"));
-
-    //  Check role
-    if (user.getRole() != Role.DIETITIAN) {
-      throw new RuntimeException("Access denied: not a dietitian");
+    if (dietitian == null) {
+      dietitian = new Dietitian();
+      dietitian.setUser(user);
     }
-
-    //  Prevent duplicate
-    if (dietitianRepository.existsById(userId)) {
-      throw new RuntimeException("Dietitian profile already exists");
-    }
-
-    //  Create profile
-    Dietitian dietitian = new Dietitian();
-    dietitian.setUser(user);
 
     dietitian.setSpecialization(request.getSpecialization());
-    dietitian.setCertification(request.getCertification());
+    dietitian.setCertification(request.getCertification()); // 🔗 certificate URL
     dietitian.setLinkUrl(request.getLinkUrl());
     dietitian.setExperienceYears(request.getExperienceYears());
     dietitian.setConsultationPrice(request.getConsultationPrice());
 
-    //  Save
-    Dietitian savedDietitian = dietitianRepository.save(dietitian);
-
-    //  Update user
-    user.setProfileCompleted(true);
-    userRepository.save(user);
-
-    //  Return created profile
-    return savedDietitian;
+    user.setDietitian(dietitian);
   }
 
   @Override
-  public List<Map<String, Object>> getAllDietitians() {
-    return dietitianRepository.findAll().stream().map(d -> {
-      Map<String, Object> m = new LinkedHashMap<>();
-      m.put("id", d.getId());
-      String firstName = "", lastName = "";
-      if (d.getUser() != null) {
-        firstName = d.getUser().getFirstName() != null ? d.getUser().getFirstName() : "";
-        lastName  = d.getUser().getLastName()  != null ? d.getUser().getLastName()  : "";
-        m.put("firstName", firstName);
-        m.put("lastName",  lastName);
-        m.put("email",     d.getUser().getEmail());
+  public void updateDietitianProfile(User user, UpdateProfileRequest request) {
+
+    Dietitian dietitian = user.getDietitian();
+
+    if (dietitian == null) {
+      throw new ResponseStatusException(
+              HttpStatus.NOT_FOUND, "Dietitian profile not found");
+    }
+
+    //  Update ONLY dietitian fields
+
+    if (request.getSpecialization() != null) {
+      dietitian.setSpecialization(request.getSpecialization());
+    }
+
+    if (request.getCertification() != null) {
+      dietitian.setCertification(request.getCertification());
+    }
+
+    if (request.getLinkUrl() != null) {
+      dietitian.setLinkUrl(request.getLinkUrl());
+    }
+
+    if (request.getExperienceYears() != null) {
+      if (request.getExperienceYears() < 0) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Invalid experience years");
       }
-      m.put("specialization",    d.getSpecialization());
-      m.put("certification",     d.getCertification());
-      m.put("experienceYears",   d.getExperienceYears());
-      m.put("consultationPrice", d.getConsultationPrice());
-      m.put("linkUrl",           d.getLinkUrl());
-      String fullName = (firstName + " " + lastName).trim();
-      Double avg   = ratingRepository.findAverageRatingByDoctorName(fullName);
-      Long   count = ratingRepository.countRatingsByDoctorName(fullName);
-      m.put("averageRating", avg   != null ? Math.round(avg * 10.0) / 10.0 : null);
-      m.put("totalRatings",  count != null ? count : 0L);
-      return m;
-    }).collect(Collectors.toList());
+      dietitian.setExperienceYears(request.getExperienceYears());
+    }
+
+    if (request.getConsultationPrice() != null) {
+      if (request.getConsultationPrice() < 0) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Invalid consultation price");
+      }
+      dietitian.setConsultationPrice(request.getConsultationPrice());
+    }
+
   }
+
+
+  @Override
+  public DietitianProfile getDietitianProfile(User user) {
+
+    Dietitian dietitian = user.getDietitian();
+
+    if (dietitian == null) {
+      return null;
+    }
+
+    DietitianProfile dp = new DietitianProfile();
+    dp.setSpecialization(dietitian.getSpecialization());
+    dp.setExperienceYears(dietitian.getExperienceYears());
+    dp.setConsultationPrice(dietitian.getConsultationPrice());
+    dp.setLinkUrl(dietitian.getLinkUrl());
+    dp.setCertificateUrl(dietitian.getCertification());
+
+    return dp;
+  }
+
 }

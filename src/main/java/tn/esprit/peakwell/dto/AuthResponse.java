@@ -6,8 +6,9 @@ import lombok.experimental.FieldDefaults;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class LoginRequest {
+public class AuthResponse {
 
-  String email;
-  String password;
+    String accessToken;
+    String refreshToken;
+    Integer expiresIn;
 }

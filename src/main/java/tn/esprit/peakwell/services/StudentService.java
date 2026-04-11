@@ -1,105 +1,108 @@
 package tn.esprit.peakwell.services;
 
-import tn.esprit.peakwell.dto.StudentProfileRequest;
-import tn.esprit.peakwell.entities.Role;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import tn.esprit.peakwell.dto.ProfileRequest;
+import tn.esprit.peakwell.dto.StudentProfile;
+import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.entities.Student;
 import tn.esprit.peakwell.entities.User;
-import tn.esprit.peakwell.repositories.StudentRepository;
-import tn.esprit.peakwell.repositories.userRepository;
-import tn.esprit.peakwell.security.JwtUtils;
-import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
-@AllArgsConstructor
 public class StudentService implements IStudentService {
 
-  @Autowired
-  StudentRepository studentRepository;
-  userRepository userRepository;
-  private final JwtUtils jwtUtils;
 
   @Override
-  public Student completeStudentProfile(String token, StudentProfileRequest request) {
+  public void createStudent(User user, ProfileRequest request) {
 
-    //  Extract userId
-    Long userId = jwtUtils.extractUserId(token);
+    Student student = user.getStudent();
 
-    //  Get user
-    User user = userRepository.findById(userId)
-      .orElseThrow(() -> new RuntimeException("User not found"));
-
-    //  Check role
-    if (user.getRole() != Role.STUDENT) {
-      throw new RuntimeException("Access denied: not a student");
+    if (student == null) {
+      student = new Student();
+      student.setUser(user);
     }
-
-    //  Prevent duplicate
-    if (studentRepository.existsById(userId)) {
-      throw new RuntimeException("Student profile already exists");
-    }
-
-    //  Create profile
-    Student student = new Student();
-    student.setUser(user);
 
     student.setHeight(request.getHeight());
     student.setWeight(request.getWeight());
-
-    // 👉 optional: calculate BMI automatically (better design 🔥)
-    if (request.getHeight() != null && request.getWeight() != null) {
-      double heightInMeters = request.getHeight() / 100.0;
-      double bmi = request.getWeight() / (heightInMeters * heightInMeters);
-      student.setBmi((float) bmi);
-    }
-
     student.setActivityLevel(request.getActivityLevel());
     student.setGoal(request.getGoal());
 
-    //  Save
-    Student savedStudent = studentRepository.save(student);
+    // BMI calculation
+    float heightMeters = request.getHeight() / 100;
+    float bmi = (float) (request.getWeight() / (heightMeters * heightMeters));
+    student.setBmi(Math.round(bmi * 100) / 100f);
 
-    //  Update user
-    user.setProfileCompleted(true);
-    userRepository.save(user);
 
-    //  Return created profile
-    return savedStudent;
+    user.setStudent(student);
   }
 
   @Override
-  public List<Map<String, Object>> getAllStudents() {
-    return studentRepository.findAll().stream().map(this::toMap).collect(Collectors.toList());
-  }
+  public void updateStudentProfile(User user, UpdateProfileRequest request) {
 
-  @Override
-  public Map<String, Object> getStudentById(Long id) {
-    return studentRepository.findById(id).map(this::toMap).orElse(null);
-  }
+    Student student = user.getStudent();
 
-  private Map<String, Object> toMap(Student s) {
-    Map<String, Object> m = new LinkedHashMap<>();
-    m.put("id", s.getId());
-    if (s.getUser() != null) {
-      User u = s.getUser();
-      m.put("firstName", u.getFirstName());
-      m.put("lastName",  u.getLastName());
-      m.put("email",     u.getEmail());
-      m.put("age",       u.getAge());
-      m.put("enabled",   u.isEnabled());
-      m.put("profileCompleted", u.isProfileCompleted());
+    if (student == null) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Student profile not found");
     }
-    m.put("height",        s.getHeight());
-    m.put("weight",        s.getWeight());
-    m.put("bmi",           s.getBmi());
-    m.put("activityLevel", s.getActivityLevel());
-    m.put("goal",          s.getGoal());
-    return m;
+
+    // 🔹 Validation
+    if (request.getHeight() != null && request.getHeight() <= 0) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Invalid height");
+    }
+
+    if (request.getWeight() != null && request.getWeight() <= 0) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Invalid weight");
+    }
+
+    //  Update fields
+    if (request.getHeight() != null) {
+      student.setHeight(request.getHeight());
+    }
+
+    if (request.getWeight() != null) {
+      student.setWeight(request.getWeight());
+    }
+
+    if (request.getActivityLevel() != null) {
+      student.setActivityLevel(request.getActivityLevel());
+    }
+
+    if (request.getGoal() != null) {
+      student.setGoal(request.getGoal());
+    }
+
+
+    // Recalculate BMI safely
+    if (student.getHeight() != null && student.getWeight() != null) {
+
+      float heightMeters = student.getHeight() / 100;
+      float bmi = student.getWeight() / (heightMeters * heightMeters);
+
+      student.setBmi(Math.round(bmi * 100) / 100f);
+    }
   }
+
+  @Override
+  public StudentProfile getStudentProfile(User user) {
+
+    Student student = user.getStudent();
+
+    if (student == null) {
+      return null;
+    }
+
+    StudentProfile sp = new StudentProfile();
+    sp.setWeight(student.getWeight() != null ? student.getWeight().doubleValue() : null);
+    sp.setHeight(student.getHeight() != null ? student.getHeight().doubleValue() : null);
+    sp.setActivityLevel(student.getActivityLevel());
+    sp.setGoal(student.getGoal());
+
+    return sp;
+  }
+
 }
