@@ -1,21 +1,28 @@
 package tn.esprit.peakwell.services;
 
-import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import jakarta.mail.internet.MimeMessage;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+
+    @Value("${app.mail.from}")
+    private String from;
 
     @Value("${admin.email}")
     private String adminEmail;
@@ -23,14 +30,28 @@ public class EmailService {
     @Value("${app.name:PeakWell Forum}")
     private String appName;
 
-    @Value("${spring.mail.username}")
-    private String fromEmail;
-
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    @Async
+    public void send(String to, String subject, String htmlBody) {
+        if (to == null || to.isBlank()) {
+            log.warn("Email skipped — no recipient address");
+            return;
+        }
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            mailSender.send(msg);
+            log.info("Email sent to {} — {}", to, subject);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {}", to, e.getMessage());
+        }
     }
 
-    @Async
+    // ── Moderation Alert ──────────────────────────────────────────────────────
+
     public void sendInappropriateContentAlert(
             String commentContent,
             String commentAuthor,
@@ -38,51 +59,13 @@ public class EmailService {
             String category,
             List<String> detectedWords) {
 
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(adminEmail);
-            helper.setSubject("🚨 [" + appName + "] Inappropriate Comment Detected - Action Required");
-
-            String htmlContent = buildEmailTemplate(
-                commentContent, commentAuthor, articleId, category, detectedWords
-            );
-
-            helper.setText(htmlContent, true);
-
-            mailSender.send(message);
-            System.out.println("✅ Admin alert email sent successfully to: " + adminEmail);
-
-        } catch (Exception e) {
-            System.err.println("❌ Failed to send admin alert email: " + e.getMessage());
-            e.printStackTrace();
-            // Don't throw exception - email failure should not affect comment blocking
-        }
-    }
-
-    private String buildEmailTemplate(
-            String commentContent,
-            String commentAuthor,
-            String articleId,
-            String category,
-            List<String> detectedWords) {
+        String subject = "🚨 Inappropriate Comment Detected — " + appName;
 
         String detectedWordsHtml = detectedWords.stream()
-            .map(word -> "<span style='background:#f44336;color:white;padding:2px 8px;" +
-                         "border-radius:12px;font-size:12px;margin:2px;display:inline-block'>" +
+            .map(word -> "<span style='background:#c96a3f;color:white;padding:3px 10px;" +
+                         "border-radius:12px;font-size:12px;margin:2px;display:inline-block;font-weight:600;'>" +
                          word + "</span>")
             .collect(Collectors.joining(" "));
-
-        String categoryColor = switch (category) {
-            case "HATE_SPEECH" -> "#9c27b0";
-            case "VIOLENCE" -> "#f44336";
-            case "SEXUAL" -> "#ff5722";
-            case "PROFANITY" -> "#ff9800";
-            case "SPAM" -> "#607d8b";
-            default -> "#795548";
-        };
 
         String categoryEmoji = switch (category) {
             case "HATE_SPEECH" -> "🚫";
@@ -93,140 +76,69 @@ public class EmailService {
             default -> "⚠️";
         };
 
+        String heading = "Inappropriate content has been blocked";
+        String bodyContent = "A comment containing <strong>" + category.replace("_", " ").toLowerCase() +
+                           "</strong> has been automatically detected and blocked on <strong>" + appName + "</strong>.<br><br>" +
+                           "<strong>Comment:</strong> \"" + (commentContent != null ? commentContent : "") + "\"<br><br>" +
+                           "<strong>Author:</strong> " + (commentAuthor != null ? commentAuthor : "Anonymous") + "<br>" +
+                           "<strong>Article ID:</strong> #" + (articleId != null ? articleId : "Unknown") + "<br>" +
+                           "<strong>Detected At:</strong> " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) +
+                           "<br><br><strong>Flagged Words:</strong><br>" + detectedWordsHtml +
+                           "<br><br><span style='color:#8a7e78;font-size:12px;'>The user has been notified. No further action required.</span>";
+
+        String body = template(
+            "Admin",
+            heading,
+            bodyContent,
+            "#c96a3f",
+            categoryEmoji + " " + category.replace("_", " ")
+        );
+
+        send(adminEmail, subject, body);
+    }
+
+    // ── HTML Template ────────────────────────────────────────────────────────
+
+    private String template(String name, String heading, String body, String accentColor, String badge) {
         return """
             <!DOCTYPE html>
             <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
-                
-                <div style="max-width:600px;margin:20px auto;background:white;
-                            border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-                    
+            <body style="margin:0;padding:0;background:#f5f1ed;font-family:'Segoe UI',Arial,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f5f1ed;padding:32px 0;">
+                <tr><td align="center">
+                  <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
                     <!-- Header -->
-                    <div style="background:#C75B30;padding:24px;text-align:center;">
-                        <h1 style="color:white;margin:0;font-size:22px;">
-                            🚨 Inappropriate Content Alert
-                        </h1>
-                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">
-                            A comment has been automatically blocked on %s
-                        </p>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div style="padding:28px;">
-                        
-                        <!-- Category Badge -->
-                        <div style="margin-bottom:20px;text-align:center;">
-                            <span style="background:%s;color:white;padding:8px 20px;
-                                         border-radius:20px;font-size:14px;font-weight:bold;">
-                                %s %s
-                            </span>
-                        </div>
-
-                        <!-- Comment Details -->
-                        <table style="width:100%%;border-collapse:collapse;margin-bottom:20px;">
-                            <tr>
-                                <td style="padding:10px;background:#f9f9f9;border-radius:6px 0 0 0;
-                                            font-weight:bold;color:#555;width:35%%;font-size:13px;">
-                                    👤 Author
-                                </td>
-                                <td style="padding:10px;background:#f9f9f9;border-radius:0 6px 0 0;
-                                            color:#333;font-size:13px;">
-                                    %s
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px;font-weight:bold;color:#555;font-size:13px;">
-                                    📄 Article ID
-                                </td>
-                                <td style="padding:10px;color:#333;font-size:13px;">
-                                    #%s
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px;background:#f9f9f9;font-weight:bold;
-                                            color:#555;font-size:13px;">
-                                    🕐 Detected At
-                                </td>
-                                <td style="padding:10px;background:#f9f9f9;color:#333;font-size:13px;">
-                                    %s
-                                </td>
-                            </tr>
-                        </table>
-
-                        <!-- Comment Content -->
-                        <div style="margin-bottom:20px;">
-                            <h3 style="color:#333;margin:0 0 10px;font-size:14px;">
-                                💬 Blocked Comment Content:
-                            </h3>
-                            <div style="background:#fff3cd;border:1px solid #ffc107;
-                                        border-left:4px solid #f44336;border-radius:6px;
-                                        padding:14px;font-size:13px;color:#555;
-                                        font-style:italic;line-height:1.6;">
-                                "%s"
-                            </div>
-                        </div>
-
-                        <!-- Detected Words -->
-                        <div style="margin-bottom:24px;">
-                            <h3 style="color:#333;margin:0 0 10px;font-size:14px;">
-                                🔍 Detected Inappropriate Words:
-                            </h3>
-                            <div style="padding:10px;background:#ffeaea;
-                                        border-radius:6px;min-height:30px;">
-                                %s
-                            </div>
-                        </div>
-
-                        <!-- Status -->
-                        <div style="background:#e8f5e9;border-radius:8px;padding:14px;
-                                    text-align:center;margin-bottom:24px;">
-                            <span style="color:#2e7d32;font-weight:bold;font-size:14px;">
-                                ✅ Comment has been automatically BLOCKED
-                            </span>
-                            <p style="color:#388e3c;font-size:12px;margin:6px 0 0;">
-                                No action required. The user has been notified.
-                            </p>
-                        </div>
-
-                        <!-- Action Note -->
-                        <div style="background:#e3f2fd;border-radius:8px;padding:14px;">
-                            <p style="color:#1565c0;font-size:13px;margin:0;">
-                                📋 <strong>Admin Note:</strong> 
-                                If this is a repeated offense from the same user, 
-                                consider reviewing their account activity.
-                            </p>
-                        </div>
-                    </div>
-
+                    <tr>
+                      <td style="background:linear-gradient(135deg,#c96a3f,#e88f68);padding:32px 40px;text-align:center;">
+                        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">🌿 PeakWell</h1>
+                        <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">Health &amp; Wellness Platform</p>
+                      </td>
+                    </tr>
+                    <!-- Badge -->
+                    <tr>
+                      <td style="text-align:center;padding:24px 40px 0;">
+                        <span style="display:inline-block;background:%s22;color:%s;border:1.5px solid %s44;border-radius:100px;padding:6px 20px;font-size:13px;font-weight:600;">%s</span>
+                      </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                      <td style="padding:24px 40px 32px;">
+                        <p style="margin:0 0 8px;color:#8a7e78;font-size:13px;">Hello, <strong>%s</strong></p>
+                        <h2 style="margin:0 0 16px;color:#1e1a16;font-size:20px;font-weight:700;">%s</h2>
+                        <p style="margin:0;color:#5a5450;font-size:14px;line-height:1.7;">%s</p>
+                      </td>
+                    </tr>
                     <!-- Footer -->
-                    <div style="background:#f9f9f9;padding:16px;text-align:center;
-                                border-top:1px solid #eee;">
-                        <p style="color:#999;font-size:12px;margin:0;">
-                            This is an automated notification from %s Content Moderation System.
-                        </p>
-                        <p style="color:#999;font-size:11px;margin:6px 0 0;">
-                            Do not reply to this email.
-                        </p>
-                    </div>
-                    
-                </div>
+                    <tr>
+                      <td style="background:#f9f6f3;padding:16px 40px;border-top:1px solid #ede8e3;text-align:center;">
+                        <p style="margin:0;color:#b5aaa5;font-size:11px;">This is an automated message from PeakWell. Please do not reply to this email.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
             </body>
             </html>
-            """.formatted(
-                appName,
-                categoryColor,
-                categoryEmoji,
-                category.replace("_", " "),
-                commentAuthor != null ? commentAuthor : "Anonymous",
-                articleId != null ? articleId : "Unknown",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")),
-                commentContent != null ? commentContent : "",
-                detectedWordsHtml.isEmpty() ? "<span style='color:#999'>None detected</span>" : detectedWordsHtml,
-                appName
-            );
+            """.formatted(accentColor, accentColor, accentColor, badge, name, heading, body);
     }
 }
