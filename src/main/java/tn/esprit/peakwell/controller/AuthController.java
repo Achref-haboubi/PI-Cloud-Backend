@@ -4,12 +4,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import tn.esprit.peakwell.dto.ForgotPasswordRequest;
+import tn.esprit.peakwell.dto.GoogleSignupRequest;
 import tn.esprit.peakwell.dto.LoginRequest;
 import tn.esprit.peakwell.dto.RegisterRequest;
+import tn.esprit.peakwell.entities.Role;
 import tn.esprit.peakwell.services.IAuthService;
 
 import java.util.Map;
@@ -43,6 +48,32 @@ public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    @GetMapping("/google-url")
+    public ResponseEntity<Map<String, String>> getGoogleAuthUrl(@RequestParam String flow) {
+        return ResponseEntity.ok(Map.of("url", authService.generateGoogleAuthUrl()));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> handleGoogleLogin(@RequestBody Map<String, String> body) {
+        return authService.handleGoogleLogin(body.get("code"), body.get("flow"));
+    }
+
+    @PostMapping("/google/complete-signup")
+public ResponseEntity<?> completeGoogleSignup(@RequestBody GoogleSignupRequest request) {
+
+    String accessToken = request.getAccessToken();
+
+    Role role;
+    try {
+        role = Role.valueOf(request.getRole().toUpperCase());
+    } catch (Exception e) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("message", "Invalid role"));
+    }
+
+    return authService.completeGoogleSignup(accessToken, role);
+}
 
 
 }

@@ -21,7 +21,7 @@ public class FileUploadService implements IFileUploadService {
         try {
             if (file == null || file.isEmpty()) return null;
 
-            // 🔥 build dynamic folder
+            //  build dynamic folder
             String folder = "peakwell/" + role.toLowerCase();
 
             if (type != null && !type.isEmpty()) {

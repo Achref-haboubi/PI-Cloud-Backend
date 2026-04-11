@@ -3,6 +3,7 @@ package tn.esprit.peakwell.services;
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -83,7 +84,7 @@ public class KeycloakService implements IKeycloakService {
                 .delete(userId);
     }
 
-    private void assignRole(String userId, String roleName) {
+    public void assignRole(String userId, String roleName) {
 
         RoleRepresentation role = keycloak.realm(realm)
                 .roles()
@@ -185,4 +186,6 @@ public class KeycloakService implements IKeycloakService {
         }
     }
 
+
+    
 }
