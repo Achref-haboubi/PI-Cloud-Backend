@@ -14,6 +14,7 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final EmailService emailService;
 
     private Product mapToEntity(ProductRequest dto) {
 
@@ -59,8 +60,9 @@ public class ProductService {
         return dto;
     }
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, EmailService emailService) {
         this.productRepository = productRepository;
+        this.emailService = emailService;
     }
 
     public ProductDTO addProduct(ProductRequest request) {
@@ -99,6 +101,8 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        StockStatus oldStatus = product.getStockStatus();
+
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setCalories(request.getCalories());
@@ -112,6 +116,12 @@ public class ProductService {
         product.setMinStock(request.getMinStock());
         updateStockStatus(product);
 
+        if (oldStatus != product.getStockStatus()
+                && product.getStockStatus() != StockStatus.IN_STOCK) {
+
+            checkAndSendStockAlert(product);
+        }
+
         Product updated = productRepository.save(product);
 
         return mapToDTO(updated);
@@ -124,8 +134,10 @@ public class ProductService {
     private void updateStockStatus(Product product) {
         if (product.getStock() == 0) {
             product.setStockStatus(StockStatus.OUT_OF_STOCK);
+            //checkAndSendStockAlert(product);
         } else if (product.getStock() <= product.getMinStock()) {
             product.setStockStatus(StockStatus.LOW_STOCK);
+            //checkAndSendStockAlert(product);
         } else {
             product.setStockStatus(StockStatus.IN_STOCK);
         }
@@ -175,6 +187,35 @@ public class ProductService {
         updateStockStatus(product);
 
         productRepository.save(product);
+    }
+
+    public void attachImage(Long productId, String fileName) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        product.setImage(fileName);
+        productRepository.save(product);
+    }
+
+    private void checkAndSendStockAlert(Product product) {
+
+        String email = "achrefhaboubi33@gmail.com"; 
+
+        if (product.getStock() == 0) {
+
+            emailService.sendOutOfStockAlert(
+                email,
+                product.getName()
+            );
+
+        } else if (product.getStock() <= product.getMinStock()) {
+
+            emailService.sendLowStockAlert(
+                email,
+                product.getName(),
+                product.getStock()
+            );
+        }
     }
 
 

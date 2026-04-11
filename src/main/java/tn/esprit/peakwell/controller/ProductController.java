@@ -4,12 +4,21 @@ import tn.esprit.peakwell.dto.ProductDTO;
 import tn.esprit.peakwell.dto.ProductRequest;
 import tn.esprit.peakwell.services.ProductService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import jakarta.validation.Valid;
+
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import tn.esprit.peakwell.services.DescriptionAPIService;
 import tn.esprit.peakwell.services.NutritionService;
 import tn.esprit.peakwell.dto.NutritionResponse;
 import java.util.Map;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import org.springframework.http.MediaType;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/products")
@@ -80,6 +89,51 @@ public class ProductController {
     @GetMapping("api/nutrition")
     public NutritionResponse getNutrition(@RequestParam String name) {
         return nutritionService.getNutrition(name);
+    }
+
+    @PostMapping(value = "/with-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProductDTO createProductWithImage(
+            @RequestPart("product") ProductRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) throws IOException {
+
+        ProductDTO productDTO = productService.addProduct(request);
+
+        if (image != null && !image.isEmpty()) {
+
+            String fileName = UUID.randomUUID() + "_" + image.getOriginalFilename();
+
+            Path path = Paths.get("uploads/" + fileName);
+            Files.createDirectories(path.getParent());
+            Files.write(path, image.getBytes());
+
+            productService.attachImage(productDTO.getId(), fileName);
+        }
+
+        return productService.getProduct(productDTO.getId());
+    }
+
+    @PutMapping(value = "/{id}/with-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProductDTO updateProductWithImage(
+            @PathVariable Long id,
+            @RequestPart("product") ProductRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) throws IOException {
+
+        ProductDTO productDTO = productService.updateProduct(id, request);
+
+        if (image != null && !image.isEmpty()) {
+
+            String fileName = UUID.randomUUID() + "_" + image.getOriginalFilename();
+
+            Path path = Paths.get("uploads/" + fileName);
+            Files.createDirectories(path.getParent());
+            Files.write(path, image.getBytes());
+
+            productService.attachImage(productDTO.getId(), fileName);
+        }
+
+        return productService.getProduct(productDTO.getId());
     }
 
 }
