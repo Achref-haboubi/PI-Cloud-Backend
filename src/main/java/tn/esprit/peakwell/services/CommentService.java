@@ -7,6 +7,8 @@ import tn.esprit.peakwell.repositories.CommentRepository;
 import tn.esprit.peakwell.repositories.ArticleRepository;
 import tn.esprit.peakwell.repositories.CommentVoteRepository;
 import tn.esprit.peakwell.dto.CommentDTO;
+import tn.esprit.peakwell.dto.ModerationResult;
+import tn.esprit.peakwell.exception.InappropriateContentException;
 
 import org.springframework.stereotype.Service;
 
@@ -21,17 +23,31 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ArticleRepository articleRepository;
     private final CommentVoteRepository commentVoteRepository;
+    private final ContentModerationService contentModerationService;
 
     public CommentService(CommentRepository commentRepository,
                           ArticleRepository articleRepository,
-                          CommentVoteRepository commentVoteRepository) {
+                          CommentVoteRepository commentVoteRepository,
+                          ContentModerationService contentModerationService) {
         this.commentRepository = commentRepository;
         this.articleRepository = articleRepository;
         this.commentVoteRepository = commentVoteRepository;
+        this.contentModerationService = contentModerationService;
     }
 
     // ✅ ADD COMMENT
     public Comment addComment(Long articleId, CommentDTO commentDTO) {
+        // Check content FIRST
+        ModerationResult moderation = contentModerationService.checkContent(commentDTO.getContent());
+
+        if (!moderation.isAllowed()) {
+            throw new InappropriateContentException(
+                    "Comment blocked",
+                    moderation.getCategory(),
+                    moderation.getDetectedWords()
+            );
+        }
+
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new RuntimeException("Article not found with id: " + articleId));
 
@@ -41,6 +57,7 @@ public class CommentService {
         comment.setArticle(article);
         comment.setUpvotes(0);
         comment.setDownvotes(0);
+        comment.setModerationStatus("APPROVED");
 
         return commentRepository.save(comment);
     }
@@ -55,6 +72,16 @@ public class CommentService {
 
     // ✅ ADD REPLY
     public CommentDTO addReply(Long articleId, Long parentCommentId, CommentDTO dto) {
+        // Check content FIRST
+        ModerationResult moderation = contentModerationService.checkContent(dto.getContent());
+
+        if (!moderation.isAllowed()) {
+            throw new InappropriateContentException(
+                    "Reply blocked",
+                    moderation.getCategory(),
+                    moderation.getDetectedWords()
+            );
+        }
 
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new RuntimeException("Article not found with id: " + articleId));
@@ -69,6 +96,7 @@ public class CommentService {
         reply.setParentComment(parent);
         reply.setUpvotes(0);
         reply.setDownvotes(0);
+        reply.setModerationStatus("APPROVED");
 
         return mapCommentToDTO(commentRepository.save(reply));
     }
@@ -165,6 +193,7 @@ public class CommentService {
 
         dto.setUpvotes(comment.getUpvotes());
         dto.setDownvotes(comment.getDownvotes());
+        dto.setModerationStatus(comment.getModerationStatus());
 
         if (comment.getParentComment() != null) {
             dto.setParentCommentId(comment.getParentComment().getId());

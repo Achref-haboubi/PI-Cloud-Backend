@@ -20,4 +20,5 @@ public class CommentDTO {
     private List<CommentDTO> replies;
     private int upvotes;
     private int downvotes;
+    private String moderationStatus;
 }

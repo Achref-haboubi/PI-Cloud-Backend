@@ -45,6 +45,9 @@ public class Comment {
     @Column(nullable = false)
     private int downvotes = 0;
 
+    @Column(nullable = false)
+    private String moderationStatus = "APPROVED";
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
