@@ -41,4 +41,5 @@ public class ConsultationResponse {
   private Boolean reminder1hSent;
   private String createdAt;
   private String completedAt;
+  private Integer waitlistPosition; // null unless status = WAITLISTED
 }

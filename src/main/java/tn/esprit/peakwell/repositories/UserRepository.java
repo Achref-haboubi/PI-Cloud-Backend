@@ -12,6 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
   Optional<User> findByKeycloakId(String keycloakId);
   User findByEmail(String email);
+  List<User> findByRole(tn.esprit.peakwell.entities.Role role);
   @Query("""
     SELECT DISTINCT u FROM User u
     LEFT JOIN FETCH u.student

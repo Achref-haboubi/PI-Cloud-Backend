@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class ConsultationRequest {
   // Booking fields
+  private Long dietitianId;
   private String scheduledAt;         // "2026-03-25T10:30:00"
   private Integer durationMinutes;
   private String doctorName;

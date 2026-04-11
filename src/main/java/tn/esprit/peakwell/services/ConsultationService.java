@@ -5,6 +5,7 @@ import tn.esprit.peakwell.dto.ConsultationRequest;
 import tn.esprit.peakwell.dto.ConsultationResponse;
 import tn.esprit.peakwell.entities.*;
 import tn.esprit.peakwell.repositories.*;
+import tn.esprit.peakwell.repositories.DietitianRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,40 +29,77 @@ public class ConsultationService {
   private final SymptomEntryRepository symptomRepo;
   private final FeedbackRepository feedbackRepo;
   private final ObjectMapper objectMapper;
+  private final EmailConsultationService emailService;
+  private final DietitianRepository dietitianRepo;
+  private final AutoApprovalService autoApprovalService;
 
   private static final Long PROFILE_ID = 1L;
 
-  public List<ConsultationResponse> getAll() {
-    return consultRepo.findAllByOrderByScheduledAtDesc().stream().map(this::toResponse).collect(Collectors.toList());
+  public List<ConsultationResponse> getAll(Long dietitianId) {
+    if (dietitianId == null)
+      return consultRepo.findAllByOrderByScheduledAtDesc()
+              .stream().map(this::toResponse).collect(Collectors.toList());
+    return consultRepo.findByDietitianIdAndStatusNotOrderByScheduledAtDesc(dietitianId, "CANCELLED")
+            .stream().map(this::toResponse).collect(Collectors.toList());
   }
   public List<ConsultationResponse> getUpcoming() {
-    return consultRepo.findByScheduledAtAfterOrderByScheduledAtAsc(LocalDateTime.now()).stream()
-            .filter(c -> !"CANCELLED".equals(c.getStatus()) && !"REJECTED".equals(c.getStatus()))
-            .map(this::toResponse).collect(Collectors.toList());
+    List<Consultation> all = consultRepo.findByScheduledAtAfterOrderByScheduledAtAsc(LocalDateTime.now())
+            .stream().filter(c -> !"CANCELLED".equals(c.getStatus())).collect(Collectors.toList());
+
+    // Pre-compute waitlist positions per dietitian (priority → createdAt order)
+    // Group waitlisted by dietitian id
+    Map<Long, List<Consultation>> waitlistedByDietitian = all.stream()
+            .filter(c -> "WAITLISTED".equals(c.getStatus()))
+            .collect(Collectors.groupingBy(c -> c.getDietitian() != null ? c.getDietitian().getId() : 0L));
+
+    // Sort each group: URGENT first, then by createdAt
+    Map<String, Integer> priorityOrder = Map.of("URGENT", 1, "HIGH", 2, "NORMAL", 3, "LOW", 4);
+    waitlistedByDietitian.values().forEach(list ->
+            list.sort(Comparator
+                    .comparingInt((Consultation c) -> priorityOrder.getOrDefault(c.getPriority(), 5))
+                    .thenComparing(Consultation::getCreatedAt)));
+
+    // Build id → position map
+    Map<Long, Integer> positionMap = new LinkedHashMap<>();
+    waitlistedByDietitian.forEach((did, list) -> {
+      for (int i = 0; i < list.size(); i++) positionMap.put(list.get(i).getId(), i + 1);
+    });
+
+    return all.stream().map(c -> {
+      ConsultationResponse r = toResponse(c);
+      if ("WAITLISTED".equals(c.getStatus())) r.setWaitlistPosition(positionMap.get(c.getId()));
+      return r;
+    }).collect(Collectors.toList());
   }
 
-  public List<ConsultationResponse> getPending() {
-    return consultRepo.findByStatusOrderByScheduledAtAsc("PENDING_APPROVAL").stream()
-            .map(this::toResponse).collect(Collectors.toList());
+  public List<ConsultationResponse> getPending(Long dietitianId) {
+    return consultRepo.findByDietitianIdAndStatusOrderByScheduledAtAsc(dietitianId, "PENDING_APPROVAL")
+            .stream().map(this::toResponse).collect(Collectors.toList());
   }
 
   @Transactional
-  public ConsultationResponse confirm(Long id) {
+  public ConsultationResponse confirm(Long id, Long dietitianId) {
     Consultation c = find(id);
+    verifyDietitianOwnership(c, dietitianId);
     if (!"PENDING_APPROVAL".equals(c.getStatus()))
       throw new RuntimeException("Consultation is not pending approval");
     c.setStatus("UPCOMING");
-    return toResponse(consultRepo.save(c));
+    Consultation saved = consultRepo.save(c);
+    sendEmailIfPossible(saved, "CONFIRMED");
+    return toResponse(saved);
   }
 
   @Transactional
-  public ConsultationResponse reject(Long id, String reason) {
+  public ConsultationResponse reject(Long id, String reason, Long dietitianId) {
     Consultation c = find(id);
+    verifyDietitianOwnership(c, dietitianId);
     if (!"PENDING_APPROVAL".equals(c.getStatus()))
       throw new RuntimeException("Consultation is not pending approval");
     c.setStatus("REJECTED");
     c.setRejectionReason(reason);
-    return toResponse(consultRepo.save(c));
+    Consultation saved = consultRepo.save(c);
+    sendEmailIfPossible(saved, "REJECTED");
+    return toResponse(saved);
   }
   public List<ConsultationResponse> getPast() {
     return consultRepo.findByScheduledAtBeforeAndStatusNotOrderByScheduledAtDesc(LocalDateTime.now(), "CANCELLED")
@@ -72,9 +110,12 @@ public class ConsultationService {
   @Transactional
   public ConsultationResponse book(ConsultationRequest req) {
     MedicalProfile profile = profileRepo.findById(PROFILE_ID).orElse(null);
+    Dietitian dietitian = req.getDietitianId() != null
+            ? dietitianRepo.findById(req.getDietitianId()).orElse(null) : null;
     Consultation c = Consultation.builder()
             .profile(profile)
-            .scheduledAt(LocalDateTime.parse(req.getScheduledAt()))
+            .dietitian(dietitian)
+            .scheduledAt(parseDateTime(req.getScheduledAt()))
             .durationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 30)
             .doctorName(req.getDoctorName()).doctorSpecialty(req.getDoctorSpecialty())
             .consultationType(req.getConsultationType() != null ? req.getConsultationType() : "IN_PERSON")
@@ -83,7 +124,15 @@ public class ConsultationService {
     attachBiometricSnapshot(c);
     attachGoalSnapshot(c);
     generateAiSummary(c, profile);
-    return toResponse(consultRepo.save(c));
+    Consultation saved = consultRepo.save(c);
+    sendEmailIfPossible(saved, "BOOKED");
+
+    // Immediately evaluate the new consultation against the auto-approval rules
+    autoApprovalService.evaluate(saved, LocalDateTime.now());
+    // Re-fetch to return the final status after evaluation
+    saved = consultRepo.findById(saved.getId()).orElse(saved);
+
+    return toResponse(saved);
   }
 
   @Transactional
@@ -93,7 +142,7 @@ public class ConsultationService {
     if (req.getDiagnosis() != null) c.setDiagnosis(req.getDiagnosis());
     if (req.getPrescription() != null) c.setPrescription(req.getPrescription());
     if (req.getFollowUpInstructions() != null) c.setFollowUpInstructions(req.getFollowUpInstructions());
-    if (req.getFollowUpDate() != null) c.setFollowUpDate(LocalDateTime.parse(req.getFollowUpDate()));
+    if (req.getFollowUpDate() != null) c.setFollowUpDate(parseDateTime(req.getFollowUpDate()));
     return toResponse(consultRepo.save(c));
   }
 
@@ -106,15 +155,55 @@ public class ConsultationService {
   }
 
   @Transactional
-  public void delete(Long id) { consultRepo.deleteById(id); }
+  public void cancel(Long id) {
+    Consultation c = find(id);
+    c.setStatus("CANCELLED");
+    consultRepo.save(c);
+    // Promote the next waitlisted patient if this slot just freed up
+    autoApprovalService.checkWaitlist(c);
+  }
+
+  @Transactional
+  public ConsultationResponse updateDetails(Long id, ConsultationRequest req) {
+    Consultation c = find(id);
+    if (req.getReason() != null) c.setReason(req.getReason());
+    if (req.getConsultationType() != null) c.setConsultationType(req.getConsultationType());
+    if (req.getDurationMinutes() != null) c.setDurationMinutes(req.getDurationMinutes());
+    if (req.getPriority() != null) c.setPriority(req.getPriority());
+    if (req.getDoctorName() != null) c.setDoctorName(req.getDoctorName());
+    if (req.getDoctorSpecialty() != null) c.setDoctorSpecialty(req.getDoctorSpecialty());
+    if (req.getScheduledAt() != null) {
+      c.setScheduledAt(parseDateTime(req.getScheduledAt()));
+      c.setReminder24hSent(false);
+      c.setReminder1hSent(false);
+    }
+    return toResponse(consultRepo.save(c));
+  }
+
+  @Transactional
+  public ConsultationResponse changeDietitian(Long id, String doctorName, String doctorSpecialty) {
+    Consultation c = find(id);
+    c.setDoctorName(doctorName);
+    if (doctorSpecialty != null) c.setDoctorSpecialty(doctorSpecialty);
+    c.setReminder24hSent(false);
+    c.setReminder1hSent(false);
+    return toResponse(consultRepo.save(c));
+  }
 
   @Transactional
   public ConsultationResponse reschedule(Long id, String newScheduledAt) {
     Consultation c = find(id);
-    c.setScheduledAt(LocalDateTime.parse(newScheduledAt));
+    c.setScheduledAt(parseDateTime(newScheduledAt));
     c.setReminder24hSent(false);
     c.setReminder1hSent(false);
-    return toResponse(consultRepo.save(c));
+    // Reset to pending so auto-approval rules re-evaluate the new slot
+    c.setStatus("PENDING_APPROVAL");
+    c.setRejectionReason(null);
+    Consultation saved = consultRepo.save(c);
+    // Immediately evaluate the new slot against auto-approval rules
+    autoApprovalService.evaluate(saved, LocalDateTime.now());
+    saved = consultRepo.findById(saved.getId()).orElse(saved);
+    return toResponse(saved);
   }
 
   // ── FEEDBACK ────────────────────────────────
@@ -248,8 +337,8 @@ public class ConsultationService {
     LocalDateTime now = LocalDateTime.now();
     consultRepo.findByStatusOrderByScheduledAtAsc("UPCOMING").forEach(c -> {
       long mins = ChronoUnit.MINUTES.between(now, c.getScheduledAt());
-      if (mins <= 1440 && mins > 60 && !c.getReminder24hSent()) { c.setReminder24hSent(true); consultRepo.save(c); log.info("24h reminder: consultation {} with Dr. {}", c.getId(), c.getDoctorName()); }
-      if (mins <= 60 && mins > 0 && !c.getReminder1hSent()) { c.setReminder1hSent(true); consultRepo.save(c); log.info("1h reminder: consultation {} with Dr. {}", c.getId(), c.getDoctorName()); }
+      if (mins <= 1440 && mins > 60 && !c.getReminder24hSent()) { c.setReminder24hSent(true); consultRepo.save(c); sendEmailIfPossible(c, "REMINDER_24H"); log.info("24h reminder: consultation {} with Dr. {}", c.getId(), c.getDoctorName()); }
+      if (mins <= 60 && mins > 0 && !c.getReminder1hSent()) { c.setReminder1hSent(true); consultRepo.save(c); sendEmailIfPossible(c, "REMINDER_1H"); log.info("1h reminder: consultation {} with Dr. {}", c.getId(), c.getDoctorName()); }
     });
   }
 
@@ -332,7 +421,63 @@ public class ConsultationService {
             .build();
   }
 
+  @org.springframework.beans.factory.annotation.Value("${app.mail.test-recipient:}")
+  private String testRecipient;
+
+  private void sendEmailIfPossible(Consultation c, String event) {
+    try {
+      String email = null;
+      String name = "Patient";
+
+      if (c.getProfile() != null) {
+        name = c.getProfile().getFirstName() + " " + c.getProfile().getLastName();
+        if (c.getProfile().getStudent() != null && c.getProfile().getStudent().getUser() != null) {
+          email = c.getProfile().getStudent().getUser().getEmail();
+        }
+      }
+
+      // Fallback to test recipient if real email unavailable
+      if (email == null || email.isBlank()) {
+        if (testRecipient != null && !testRecipient.isBlank()) {
+          log.info("Email: no student email found for consultation {}, using test recipient", c.getId());
+          email = testRecipient;
+        } else {
+          log.warn("Email skipped for event {} on consultation {}: no student email and no test recipient configured", event, c.getId());
+          return;
+        }
+      }
+
+      String doctor = c.getDoctorName();
+      String date = c.getScheduledAt().toString().replace("T", " at ");
+      switch (event) {
+        case "BOOKED"       -> emailService.sendBookingReceived(email, name, doctor, date);
+        case "CONFIRMED"    -> emailService.sendBookingConfirmed(email, name, doctor, date);
+        case "REJECTED"     -> emailService.sendBookingRejected(email, name, doctor, date, c.getRejectionReason());
+        case "REMINDER_24H" -> emailService.sendReminder24h(email, name, doctor, date);
+        case "REMINDER_1H"  -> emailService.sendReminder1h(email, name, doctor, date);
+      }
+    } catch (Exception ex) {
+      log.warn("Email not sent for event {} on consultation {}: {}", event, c.getId(), ex.getMessage());
+    }
+  }
+
+  private void verifyDietitianOwnership(Consultation c, Long dietitianId) {
+    // If the consultation has no assigned dietitian, any dietitian may act on it
+    if (c.getDietitian() == null) return;
+    if (!c.getDietitian().getId().equals(dietitianId))
+      throw new RuntimeException("Access denied: consultation does not belong to this dietitian");
+  }
+
+  private LocalDateTime parseDateTime(String s) {
+    if (s == null) return null;
+    // datetime-local sends "2026-03-26T21:15" (no seconds) — append ":00" if needed
+    return s.length() == 16 ? LocalDateTime.parse(s + ":00") : LocalDateTime.parse(s);
+  }
+
   private Consultation find(Long id) { return consultRepo.findById(id).orElseThrow(() -> new RuntimeException("Not found")); }
+
+  /** Public accessor used by controllers that need the raw entity (e.g. for slot suggestions). */
+  public Consultation findEntity(Long id) { return find(id); }
   // Add to imports at top:
   private final ConsultationRatingRepository ratingRepo;
 
@@ -383,4 +528,9 @@ public class ConsultationService {
     });
     return result;
   }
+
+  public List<tn.esprit.peakwell.entities.Student> getClientsForDietitian(Long dietitianId) {
+    return consultRepo.findDistinctStudentsByDietitianId(dietitianId);
+  }
 }
+

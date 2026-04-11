@@ -10,6 +10,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -31,18 +33,35 @@ public class SecurityConfig {
                     .requestMatchers("/users/**").permitAll()
                     .requestMatchers("/images/**").permitAll()
                     .requestMatchers("/ai/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/dietitian/all").permitAll()
                     .requestMatchers("/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 ->
-                    oauth2.jwt(jwt ->
-                            jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
-                    )
+                    oauth2.bearerTokenResolver(bearerTokenResolver()).jwt(jwt ->
+                                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
+                            )
             );
 
     return http.build();
   }
-
+  /**
+   * Custom resolver that skips token extraction for public endpoints (/auth/**).
+   * This prevents Spring Security from rejecting requests with expired/invalid tokens
+   * on permitAll() endpoints — the JWT filter won't run if no token is extracted.
+   */
+  @Bean
+  public BearerTokenResolver bearerTokenResolver() {
+    DefaultBearerTokenResolver delegate = new DefaultBearerTokenResolver();
+    return request -> {
+      String path = request.getRequestURI();
+      // Don't extract token for public auth endpoints — avoids 401 on invalid tokens
+      if (path.startsWith("/peakwell/auth/") || path.startsWith("/auth/")) {
+        return null;
+      }
+      return delegate.resolve(request);
+    };
+  }
   @Bean
   public Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
     return jwt -> {

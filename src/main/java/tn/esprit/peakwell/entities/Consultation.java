@@ -20,6 +20,10 @@ public class Consultation {
   @JoinColumn(name = "profile_id")
   private MedicalProfile profile;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "dietitian_id")
+  private Dietitian dietitian;
+
   @Column(nullable = false)
   private LocalDateTime scheduledAt;
   private Integer durationMinutes;

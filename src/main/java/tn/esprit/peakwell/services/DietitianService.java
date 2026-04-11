@@ -10,16 +10,28 @@ import tn.esprit.peakwell.dto.ProfileRequest;
 import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.entities.Dietitian;
 import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.entities.Role;
+import tn.esprit.peakwell.repositories.ConsultationRatingRepository;
 import tn.esprit.peakwell.repositories.DietitianRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import tn.esprit.peakwell.services.DietitianService;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class DietitianService implements IDietitianService{
 
   @Autowired
   DietitianRepository dietitianRepository;
+  @Autowired
+  UserRepository userRepository;
+  @Autowired
+  ConsultationRatingRepository ratingRepository;
 
   @Override
   public void createDietitian(User user, ProfileRequest request) {
@@ -100,6 +112,42 @@ public class DietitianService implements IDietitianService{
     dp.setCertificateUrl(dietitian.getCertification());
 
     return dp;
+  }
+
+  @Override
+  public List<Map<String, Object>> getAllDietitians() {
+    return userRepository.findByRole(Role.DIETITIAN).stream().map(u -> {
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("id",        u.getId());
+      String firstName = u.getFirstName() != null ? u.getFirstName() : "";
+      String lastName  = u.getLastName()  != null ? u.getLastName()  : "";
+      m.put("firstName", firstName);
+      m.put("lastName",  lastName);
+      m.put("email",     u.getEmail());
+      m.put("imageUrl",  u.getImgUrl());
+      Dietitian d = u.getDietitian();
+      if (d != null) {
+        m.put("specialization",    d.getSpecialization());
+        m.put("certification",     d.getCertification());
+        m.put("experienceYears",   d.getExperienceYears());
+        m.put("consultationPrice", d.getConsultationPrice());
+        m.put("linkUrl",           d.getLinkUrl());
+        String fullName = (firstName + " " + lastName).trim();
+        Double avg   = ratingRepository.findAverageRatingByDoctorName(fullName);
+        Long   count = ratingRepository.countRatingsByDoctorName(fullName);
+        m.put("averageRating", avg   != null ? Math.round(avg * 10.0) / 10.0 : null);
+        m.put("totalRatings",  count != null ? count : 0L);
+      } else {
+        m.put("specialization",    null);
+        m.put("certification",     null);
+        m.put("experienceYears",   null);
+        m.put("consultationPrice", null);
+        m.put("linkUrl",           null);
+        m.put("averageRating",     null);
+        m.put("totalRatings",      0L);
+      }
+      return m;
+    }).collect(Collectors.toList());
   }
 
 }

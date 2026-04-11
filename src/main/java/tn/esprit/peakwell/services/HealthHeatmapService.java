@@ -31,8 +31,10 @@ public class HealthHeatmapService {
    * - quadrantSummary counts
    * - overallStats
    */
-  public Map<String, Object> getHeatmapData() {
-    List<MedicalProfile> profiles = profileRepo.findAll();
+  public Map<String, Object> getHeatmapData(Long dietitianId) {
+    List<MedicalProfile> profiles = (dietitianId != null)
+        ? profileRepo.findByDietitianScope(dietitianId)
+        : profileRepo.findAll();
     Map<String, Object> result = new LinkedHashMap<>();
 
     List<Map<String, Object>> patients = new ArrayList<>();
