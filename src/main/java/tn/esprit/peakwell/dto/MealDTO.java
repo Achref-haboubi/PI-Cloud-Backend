@@ -20,6 +20,10 @@ public class MealDTO {
     private double totalFats;
 
     private String tags;
+    private String image;
 
     private List<IngredientDTO> ingredients;
+
+    private List<String> predictedAllergens;
+    private int favoriteCount;
 }

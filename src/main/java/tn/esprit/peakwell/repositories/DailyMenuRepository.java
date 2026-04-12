@@ -10,5 +10,6 @@ import java.util.Optional;
 public interface DailyMenuRepository extends JpaRepository<DailyMenu, Long>{
     Optional<DailyMenu> findByDate(LocalDate date);
     List<DailyMenu> findByDateBetween(LocalDate start, LocalDate end);
+    long countByDateBetween(LocalDate start, LocalDate end);
     
 }
