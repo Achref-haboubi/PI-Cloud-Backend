@@ -18,13 +18,13 @@ public class DailyMenu {
 
     private LocalDate date;
 
-    @OneToOne
+    @ManyToOne
     private Meal breakfast;
 
-    @OneToOne
+    @ManyToOne
     private Meal lunch;
 
-    @OneToOne
+    @ManyToOne
     private Meal dinner;
     
 }
