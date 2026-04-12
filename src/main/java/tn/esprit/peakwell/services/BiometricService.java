@@ -1,14 +1,14 @@
 package tn.esprit.peakwell.services;
 
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.BiometricRequest;
 import tn.esprit.peakwell.dto.BiometricResponse;
 import tn.esprit.peakwell.dto.HealthAlertDto;
 import tn.esprit.peakwell.entities.BiometricEntry;
 import tn.esprit.peakwell.entities.MedicalProfile;
 import tn.esprit.peakwell.repositories.BiometricEntryRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.repositories.MedicalProfileRepository;
 
 import java.util.ArrayList;

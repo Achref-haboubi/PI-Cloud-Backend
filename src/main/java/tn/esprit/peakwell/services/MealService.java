@@ -1,13 +1,14 @@
 package tn.esprit.peakwell.services;
 
-import tn.esprit.peakwell.entities.*;
+import org.springframework.stereotype.Service;
+import tn.esprit.peakwell.dto.IngredientDTO;
+import tn.esprit.peakwell.dto.MealDTO;
+import tn.esprit.peakwell.entities.Ingredient;
+import tn.esprit.peakwell.entities.Meal;
+import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.exception.StockException;
 import tn.esprit.peakwell.repositories.MealRepository;
 import tn.esprit.peakwell.repositories.ProductRepository;
-import tn.esprit.peakwell.dto.MealDTO;
-import tn.esprit.peakwell.dto.IngredientDTO;
-
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 

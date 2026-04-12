@@ -1,10 +1,13 @@
 package tn.esprit.peakwell.services;
 
-import tn.esprit.peakwell.entities.*;
-import tn.esprit.peakwell.repositories.*;
-import tn.esprit.peakwell.dto.*;
-
 import org.springframework.stereotype.Service;
+import tn.esprit.peakwell.dto.DailyMenuDTO;
+import tn.esprit.peakwell.dto.IngredientDTO;
+import tn.esprit.peakwell.dto.MealDTO;
+import tn.esprit.peakwell.entities.DailyMenu;
+import tn.esprit.peakwell.entities.Meal;
+import tn.esprit.peakwell.repositories.DailyMenuRepository;
+import tn.esprit.peakwell.repositories.MealRepository;
 
 import java.time.LocalDate;
 import java.util.List;

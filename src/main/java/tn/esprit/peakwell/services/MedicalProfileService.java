@@ -1,12 +1,12 @@
 package tn.esprit.peakwell.services;
 
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.MedicalProfileRequest;
 import tn.esprit.peakwell.dto.MedicalProfileResponse;
 import tn.esprit.peakwell.entities.MedicalProfile;
 import tn.esprit.peakwell.repositories.MedicalProfileRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 

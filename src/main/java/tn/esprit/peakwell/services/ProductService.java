@@ -1,8 +1,8 @@
 package tn.esprit.peakwell.services;
 
+import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.repositories.ProductRepository;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 

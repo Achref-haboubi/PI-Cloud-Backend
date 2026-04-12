@@ -1,10 +1,10 @@
 package tn.esprit.peakwell.services;
 
-import tn.esprit.peakwell.dto.EventPredictionRequest;
-import tn.esprit.peakwell.dto.EventPredictionResponse;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import tn.esprit.peakwell.dto.EventPredictionRequest;
+import tn.esprit.peakwell.dto.EventPredictionResponse;
 
 @Service
 public class AiPredictionService {
