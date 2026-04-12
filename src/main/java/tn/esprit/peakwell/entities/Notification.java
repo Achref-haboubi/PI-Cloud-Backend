@@ -10,45 +10,45 @@ import java.time.LocalDateTime;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Notification {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id")
-    private MedicalProfile profile;
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "profile_id")
+  private MedicalProfile profile;
 
-    @Column(nullable = false)
-    private String type;  // HEALTH_ALERT, APPOINTMENT_REMINDER, GOAL_UPDATE, SYSTEM, CRITICAL_RISK
+  @Column(nullable = false)
+  private String type;  // HEALTH_ALERT, APPOINTMENT_REMINDER, GOAL_UPDATE, SYSTEM, CRITICAL_RISK
 
-    @Column(nullable = false)
-    private String severity;  // LOW, MEDIUM, HIGH, CRITICAL
+  @Column(nullable = false)
+  private String severity;  // LOW, MEDIUM, HIGH, CRITICAL
 
-    @Column(nullable = false)
-    private String title;
+  @Column(nullable = false)
+  private String title;
 
-    @Column(length = 1000)
-    private String message;
+  @Column(length = 1000)
+  private String message;
 
-    private String icon;
+  private String icon;
 
-    private String actionUrl;  // e.g. "/dossier" or "/consultations"
+  private String actionUrl;  // e.g. "/dossier" or "/consultations"
 
-    private String actionLabel;  // e.g. "Book Appointment"
+  private String actionLabel;  // e.g. "Book Appointment"
 
-    @Column(name = "is_read")
-    @Builder.Default
-    private Boolean read = false;
+  @Column(name = "is_read")
+  @Builder.Default
+  private Boolean read = false;
 
-    @Builder.Default
-    private Boolean dismissed = false;
+  @Builder.Default
+  private Boolean dismissed = false;
 
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+  @Column(updatable = false)
+  private LocalDateTime createdAt;
 
-    private LocalDateTime readAt;
+  private LocalDateTime readAt;
 
-    @PrePersist
-    protected void onCreate() { this.createdAt = LocalDateTime.now(); }
+  @PrePersist
+  protected void onCreate() { this.createdAt = LocalDateTime.now(); }
 }

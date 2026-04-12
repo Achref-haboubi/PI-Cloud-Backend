@@ -8,17 +8,17 @@ import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    List<Notification> findAllByProfileIdAndDismissedFalseOrderByCreatedAtDesc(Long profileId);
+  List<Notification> findAllByProfileIdAndDismissedFalseOrderByCreatedAtDesc(Long profileId);
 
-    List<Notification> findAllByProfileIdOrderByCreatedAtDesc(Long profileId);
+  List<Notification> findAllByProfileIdOrderByCreatedAtDesc(Long profileId);
 
-    List<Notification> findAllByDismissedFalseOrderByCreatedAtDesc();
+  List<Notification> findAllByDismissedFalseOrderByCreatedAtDesc();
 
-    long countByProfileIdAndReadFalseAndDismissedFalse(Long profileId);
+  long countByProfileIdAndReadFalseAndDismissedFalse(Long profileId);
 
-    long countByReadFalseAndDismissedFalse();
+  long countByReadFalseAndDismissedFalse();
 
-    // Prevent duplicate alerts — check if same type+title exists in last 24h
-    boolean existsByProfileIdAndTypeAndTitleAndCreatedAtAfter(
-            Long profileId, String type, String title, LocalDateTime after);
+  // Prevent duplicate alerts — check if same type+title exists in last 24h
+  boolean existsByProfileIdAndTypeAndTitleAndCreatedAtAfter(
+    Long profileId, String type, String title, LocalDateTime after);
 }

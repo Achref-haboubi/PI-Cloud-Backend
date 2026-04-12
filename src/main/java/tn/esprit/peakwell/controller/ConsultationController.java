@@ -3,12 +3,13 @@ package tn.esprit.peakwell.controller;
 import tn.esprit.peakwell.dto.ConsultationRequest;
 import tn.esprit.peakwell.dto.ConsultationResponse;
 import tn.esprit.peakwell.entities.Consultation;
+import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.DietitianRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
+import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.AutoApprovalService;
 import tn.esprit.peakwell.services.ConsultationService;
 import tn.esprit.peakwell.services.SlotSuggestionService;
-import tn.esprit.peakwell.security.JwtUtils;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -27,24 +28,23 @@ public class ConsultationController {
   private final SlotSuggestionService slotService;
   private final AutoApprovalService   autoApprovalService;
   private final DietitianRepository   dietitianRepo;
-  private final JwtUtils jwtUtils;
+  private final AuthService           authService;
+  private final UserRepository        userRepository;
 
   @Value("${app.base-url:http://localhost:8090/peakwell}")
   private String baseUrl;
 
-  /** Returns the dietitian id from the JWT, or the first dietitian in DB if no token (dev/demo mode). */
-  private Long dietitianId(HttpServletRequest req) {
-    String auth = req.getHeader("Authorization");
-    if (auth != null && auth.startsWith("Bearer "))
-      return jwtUtils.extractUserId(auth.substring(7));
-    return dietitianRepo.findFirstBy()
-        .map(d -> d.getId())
-        .orElseThrow(() -> new RuntimeException("No dietitian found in database"));
+  /** Resolves the current dietitian's DB id from the Keycloak JWT in the security context. */
+  private Long dietitianId() {
+    String keycloakId = authService.getCurrentUserId();
+    User user = userRepository.findByKeycloakId(keycloakId)
+            .orElseThrow(() -> new RuntimeException("User not found for keycloakId: " + keycloakId));
+    return user.getId();
   }
 
   @GetMapping
-  public ResponseEntity<List<ConsultationResponse>> getAll(HttpServletRequest req) {
-    return ResponseEntity.ok(consultService.getAll(dietitianId(req)));
+  public ResponseEntity<List<ConsultationResponse>> getAll() {
+    return ResponseEntity.ok(consultService.getAll(dietitianId()));
   }
 
   @GetMapping("/upcoming")
@@ -98,13 +98,13 @@ public class ConsultationController {
 
   @PatchMapping("/{id}/doctor")
   public ResponseEntity<ConsultationResponse> changeDietitian(@PathVariable Long id,
-                                                               @RequestBody Map<String, String> body) {
+                                                              @RequestBody Map<String, String> body) {
     return ResponseEntity.ok(consultService.changeDietitian(id, body.get("doctorName"), body.get("doctorSpecialty")));
   }
 
   @PatchMapping("/{id}/details")
   public ResponseEntity<ConsultationResponse> updateDetails(@PathVariable Long id,
-                                                             @RequestBody ConsultationRequest request) {
+                                                            @RequestBody ConsultationRequest request) {
     return ResponseEntity.ok(consultService.updateDetails(id, request));
   }
 
@@ -113,6 +113,7 @@ public class ConsultationController {
                                                          @RequestBody Map<String, String> body) {
     return ResponseEntity.ok(consultService.reschedule(id, body.get("scheduledAt")));
   }
+
   @PostMapping("/{id}/rating")
   public ResponseEntity<ConsultationResponse> saveRating(@PathVariable Long id,
                                                          @RequestBody Map<String, Object> data) {
@@ -120,13 +121,13 @@ public class ConsultationController {
   }
 
   @GetMapping("/pending")
-  public ResponseEntity<List<ConsultationResponse>> getPending(HttpServletRequest req) {
-    return ResponseEntity.ok(consultService.getPending(dietitianId(req)));
+  public ResponseEntity<List<ConsultationResponse>> getPending() {
+    return ResponseEntity.ok(consultService.getPending(dietitianId()));
   }
 
   @PatchMapping("/{id}/confirm")
-  public ResponseEntity<ConsultationResponse> confirm(@PathVariable Long id, HttpServletRequest req) {
-    return ResponseEntity.ok(consultService.confirm(id, dietitianId(req)));
+  public ResponseEntity<ConsultationResponse> confirm(@PathVariable Long id) {
+    return ResponseEntity.ok(consultService.confirm(id, dietitianId()));
   }
 
   /**
@@ -137,26 +138,23 @@ public class ConsultationController {
    */
   @PatchMapping("/{id}/reject")
   public ResponseEntity<?> reject(@PathVariable Long id,
-                                  @RequestBody Map<String, Object> body,
-                                  HttpServletRequest req) {
-    Long did = dietitianId(req);
-
+                                  @RequestBody Map<String, Object> body) {
+    Long did = dietitianId();
     String reason = (String) body.getOrDefault("reason", "");
 
     @SuppressWarnings("unchecked")
     List<String> suggestedSlots = body.containsKey("suggestedSlots")
-        ? (List<String>) body.get("suggestedSlots")
-        : List.of();
+            ? (List<String>) body.get("suggestedSlots")
+            : List.of();
 
     ConsultationResponse rejected = consultService.reject(id, reason, did);
 
     if (!suggestedSlots.isEmpty()) {
-      // Reload the full entity to pass to SlotSuggestionService
       slotService.createSuggestionsAndNotify(
-          consultService.findEntity(id),
-          suggestedSlots,
-          reason,
-          baseUrl
+              consultService.findEntity(id),
+              suggestedSlots,
+              reason,
+              baseUrl
       );
     }
 
@@ -168,16 +166,15 @@ public class ConsultationController {
    * Returns up to 12 free ISO-datetime slots for the dietitian owning this consultation.
    */
   @GetMapping("/{id}/available-slots")
-  public ResponseEntity<?> availableSlots(@PathVariable Long id, HttpServletRequest req) {
-    Long did = dietitianId(req);
-    if (did == null) return ResponseEntity.status(401).body("Authentication required");
+  public ResponseEntity<?> availableSlots(@PathVariable Long id) {
+    Long did = dietitianId();
     List<String> slots = slotService.getAvailableSlots(did, 12);
     return ResponseEntity.ok(slots);
   }
 
   /**
    * POST /api/consultations/auto-approval/run
-   * Manually triggers the auto-approval job — use for testing without waiting 10 min.
+   * Manually triggers the auto-approval job.
    */
   @PostMapping("/auto-approval/run")
   public ResponseEntity<Map<String, Object>> triggerAutoApproval() {
@@ -187,7 +184,6 @@ public class ConsultationController {
   /**
    * GET /api/consultations/confirm-slot?token=UUID
    * Public endpoint — called when patient clicks the email link.
-   * Returns an HTML confirmation page.
    */
   @GetMapping("/confirm-slot")
   public ResponseEntity<String> confirmSlot(@RequestParam String token) {
@@ -225,7 +221,7 @@ public class ConsultationController {
           """.formatted(
               c.getDoctorName(),
               c.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy 'à' HH:mm", java.util.Locale.FRENCH))
-          );
+      );
       return ResponseEntity.ok().header("Content-Type", "text/html;charset=UTF-8").body(html);
     } catch (RuntimeException e) {
       String html = """
@@ -259,5 +255,30 @@ public class ConsultationController {
   @GetMapping("/reminders")
   public ResponseEntity<List<Map<String, Object>>> getReminders() {
     return ResponseEntity.ok(consultService.getReminders());
+  }
+
+  /**
+   * GET /api/consultations/clients
+   * Returns all distinct patients who have at least one non-cancelled consultation
+   * with the currently authenticated dietitian.
+   */
+  @GetMapping("/clients")
+  public ResponseEntity<List<Map<String, Object>>> getMyClients() {
+    Long did = dietitianId();
+    List<tn.esprit.peakwell.entities.Student> students = consultService.getClientsForDietitian(did);
+    List<Map<String, Object>> result = students.stream().map(s -> {
+      java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+      m.put("id",        s.getId());
+      m.put("firstName", s.getUser() != null ? s.getUser().getFirstName() : "");
+      m.put("lastName",  s.getUser() != null ? s.getUser().getLastName()  : "");
+      m.put("email",     s.getUser() != null ? s.getUser().getEmail()     : "");
+      m.put("imageUrl",  s.getUser() != null ? s.getUser().getImgUrl()    : null);
+      m.put("enabled",   s.getUser() != null ? s.getUser().isEnabled()    : true);
+      m.put("goal",      s.getGoal());
+      m.put("weight",    s.getWeight());
+      m.put("bmi",       s.getBmi());
+      return m;
+    }).collect(java.util.stream.Collectors.toList());
+    return ResponseEntity.ok(result);
   }
 }

@@ -1,80 +1,77 @@
 package tn.esprit.peakwell.controller;
 
-import tn.esprit.peakwell.dto.DietitianProfileRequest;
-import tn.esprit.peakwell.entities.Dietitian;
-import tn.esprit.peakwell.repositories.DietitianRepository;
-import tn.esprit.peakwell.security.JwtUtils;
-import tn.esprit.peakwell.services.AutoApprovalService;
-import tn.esprit.peakwell.services.IDietitianService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.peakwell.entities.Dietitian;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.DietitianRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
+import tn.esprit.peakwell.services.AuthService;
+import tn.esprit.peakwell.services.AutoApprovalService;
+import tn.esprit.peakwell.services.IDietitianService;
 
 import java.util.List;
 import java.util.Map;
 
 @Controller
-@RestController
+@ResponseBody
 @RequestMapping("/dietitian")
-@CrossOrigin(origins = "http://localhost:4200")
+@RequiredArgsConstructor
 public class DietitianController {
-  @Autowired IDietitianService    dietitianService;
-  @Autowired DietitianRepository  dietitianRepo;
-  @Autowired JwtUtils             jwtUtils;
-  @Autowired AutoApprovalService  autoApprovalService;
 
-  private Long resolveUserId(String authHeader) {
-    if (authHeader != null && authHeader.startsWith("Bearer "))
-      return jwtUtils.extractUserId(authHeader.substring(7));
-    // No token — fall back to the first dietitian in the database (dev/demo mode)
-    return dietitianRepo.findFirstBy()
-        .map(d -> d.getId())
-        .orElseThrow(() -> new RuntimeException("No dietitian found in database"));
+  private final IDietitianService  dietitianService;
+  private final AutoApprovalService autoApprovalService;
+  private final DietitianRepository dietitianRepo;
+  private final AuthService         authService;
+  private final UserRepository      userRepository;
+
+  /** Resolves the current dietitian's DB id from the Keycloak JWT in the security context. */
+  private Long resolveUserId() {
+    String keycloakId = authService.getCurrentUserId();
+    User user = userRepository.findByKeycloakId(keycloakId)
+            .orElseThrow(() -> new RuntimeException("User not found for keycloakId: " + keycloakId));
+    return user.getId();
   }
 
+  /** GET /dietitian/all — public list of all approved dietitians for patient booking */
   @GetMapping("/all")
-  public ResponseEntity<List<Map<String, Object>>> getAllDietitians() {
+  @ResponseBody
+  public ResponseEntity<List<Map<String, Object>>> getAll() {
     return ResponseEntity.ok(dietitianService.getAllDietitians());
   }
 
-  /** GET /dietitian/schedule — get working hours of the current dietitian */
   @GetMapping("/schedule")
-  public ResponseEntity<?> getSchedule(
-      @RequestHeader(value = "Authorization", required = false) String authHeader) {
-    Long userId = resolveUserId(authHeader);
+  public ResponseEntity<?> getSchedule() {
+    Long userId = resolveUserId();
     return dietitianRepo.findById(userId)
-      .map(d -> {
-        List<String> days = (d.getWorkingDays() != null && !d.getWorkingDays().isEmpty())
-            ? d.getWorkingDays()
-            : List.of("MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY");
-        int start = (d.getWorkStartHour() != null) ? d.getWorkStartHour() : 9;
-        int end   = (d.getWorkEndHour()   != null) ? d.getWorkEndHour()   : 17;
-        // Guard against corrupted data (reversed hours)
-        if (start >= end) { start = 9; end = 17; }
-        return ResponseEntity.ok(Map.of(
-            "workingDays",   days,
-            "workStartHour", start,
-            "workEndHour",   end
-        ));
-      })
-      .orElse(ResponseEntity.notFound().build());
+            .map(d -> {
+              List<String> days = (d.getWorkingDays() != null && !d.getWorkingDays().isEmpty())
+                      ? d.getWorkingDays()
+                      : List.of("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY");
+              int start = (d.getWorkStartHour() != null) ? d.getWorkStartHour() : 9;
+              int end   = (d.getWorkEndHour()   != null) ? d.getWorkEndHour()   : 17;
+              if (start >= end) { start = 9; end = 17; }
+              return ResponseEntity.ok(Map.of(
+                      "workingDays",   days,
+                      "workStartHour", start,
+                      "workEndHour",   end
+              ));
+            })
+            .orElse(ResponseEntity.notFound().build());
   }
 
   /** PATCH /dietitian/schedule — save working hours */
   @PatchMapping("/schedule")
   @Transactional
-  public ResponseEntity<?> saveSchedule(
-      @RequestHeader(value = "Authorization", required = false) String authHeader,
-      @RequestBody Map<String, Object> body) {
-    Long userId = resolveUserId(authHeader);
+  public ResponseEntity<?> saveSchedule(@RequestBody Map<String, Object> body) {
+    Long userId = resolveUserId();
     Dietitian d = dietitianRepo.findById(userId)
-      .orElseThrow(() -> new RuntimeException("Dietitian not found"));
+            .orElseThrow(() -> new RuntimeException("Dietitian not found"));
 
     if (body.containsKey("workingDays")) {
-      // Modify the JPA-managed collection in place — replacing it via setter
-      // causes JPA to lose track of the @ElementCollection and skip the DB update
       d.getWorkingDays().clear();
       d.getWorkingDays().addAll((List<String>) body.get("workingDays"));
     }
@@ -85,70 +82,8 @@ public class DietitianController {
 
     dietitianRepo.save(d);
 
-    // Immediately re-evaluate all pending consultations against the new schedule
     autoApprovalService.runNow();
 
     return ResponseEntity.ok(Map.of("message", "Schedule saved"));
-  }
-
-  @PostMapping("/complete-profile")
-  public ResponseEntity<?> completeProfile(
-    @RequestHeader("Authorization") String authHeader,
-    @RequestBody DietitianProfileRequest request) {
-
-    try {
-      String token = authHeader.substring(7);
-
-      // 🔥 now service returns Dietitian
-      Dietitian dietitian = dietitianService.completeDietitianProfile(token, request);
-
-      return ResponseEntity.ok(Map.of(
-        "message", "Dietitian profile completed",
-        "data", Map.of(
-
-          "specialization", dietitian.getSpecialization(),
-          "certification", dietitian.getCertification(),
-          "linkUrl", dietitian.getLinkUrl(),
-          "experienceYears", dietitian.getExperienceYears(),
-          "consultationPrice", dietitian.getConsultationPrice()
-        )
-      ));
-
-    } catch (RuntimeException e) {
-
-      if (e.getMessage().contains("Access denied")) {
-        return ResponseEntity.status(401).body(
-          Map.of(
-            "message", "Access denied",
-            "details", e.getMessage()
-          )
-        );
-      }
-
-      if (e.getMessage().contains("already exists")) {
-        return ResponseEntity.badRequest().body(
-          Map.of(
-            "message", "Profile already exists",
-            "details", e.getMessage()
-          )
-        );
-      }
-
-      return ResponseEntity.status(500).body(
-        Map.of(
-          "message", "Internal server error",
-          "details", e.getMessage()
-        )
-      );
-
-    } catch (Exception e) {
-
-      return ResponseEntity.status(500).body(
-        Map.of(
-          "message", "Internal server error",
-          "details", e.getMessage()
-        )
-      );
-    }
   }
 }

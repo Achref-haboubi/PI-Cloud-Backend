@@ -10,7 +10,7 @@ import lombok.experimental.FieldDefaults;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "medicalProfile")
+@ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Student {
 
@@ -18,14 +18,15 @@ public class Student {
   Long id;
 
   @OneToOne
+  @JsonIgnore
   @MapsId
   @JoinColumn(name = "id")
   User user;
 
+
   Float height;
   Float weight;
   Float bmi;
-
   String activityLevel;
   String goal;
 

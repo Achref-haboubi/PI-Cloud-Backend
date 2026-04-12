@@ -50,7 +50,7 @@ public class AutoApprovalService {
 
   private final ConsultationRepository consultationRepo;
   private final DietitianRepository    dietitianRepo;
-  private final EmailService           emailService;
+  private final EmailConsultationService           emailService;
 
   private final SlotSuggestionService  slotSuggestionService;
 
@@ -63,7 +63,7 @@ public class AutoApprovalService {
   public AutoApprovalService(
       ConsultationRepository consultationRepo,
       DietitianRepository dietitianRepo,
-      EmailService emailService,
+      EmailConsultationService emailService,
       @Lazy SlotSuggestionService slotSuggestionService) {
     this.consultationRepo    = consultationRepo;
     this.dietitianRepo       = dietitianRepo;
@@ -145,11 +145,17 @@ public class AutoApprovalService {
 
     if (d != null) {
       String dayKey = DAY_MAP.get(scheduled.getDayOfWeek());
-      boolean dayOff = d.getWorkingDays() == null || !d.getWorkingDays().contains(dayKey);
 
+      // Use defaults when the dietitian hasn't configured their schedule
+      List<String> effectiveDays = (d.getWorkingDays() == null || d.getWorkingDays().isEmpty())
+          ? List.of("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY")
+          : d.getWorkingDays();
+      int workStart = (d.getWorkStartHour() != null) ? d.getWorkStartHour() : 9;
+      int workEnd   = (d.getWorkEndHour()   != null) ? d.getWorkEndHour()   : 17;
+
+      boolean dayOff  = !effectiveDays.contains(dayKey);
       int hour = scheduled.getHour();
-      boolean hourOff = d.getWorkStartHour() == null || d.getWorkEndHour() == null
-          || hour < d.getWorkStartHour() || hour >= d.getWorkEndHour();
+      boolean hourOff = hour < workStart || hour >= workEnd;
 
       if (dayOff || hourOff) {
         reject(c, "Le créneau demandé est en dehors des horaires de travail du nutritionniste.");
@@ -185,7 +191,7 @@ public class AutoApprovalService {
 
     // Compute position: count how many WAITLISTED for same dietitian come before this one
     try {
-      List<tn.esprit.peakwell.entities.Consultation> ordered = consultationRepo.findWaitlistedByDietitian(dietitianId);
+      List<Consultation> ordered = consultationRepo.findWaitlistedByDietitian(dietitianId);
       int position = 1;
       for (int i = 0; i < ordered.size(); i++) {
         if (ordered.get(i).getId().equals(c.getId())) { position = i + 1; break; }
@@ -204,19 +210,19 @@ public class AutoApprovalService {
    * Promotes the highest-priority (then oldest) WAITLISTED consultation for the same dietitian
    * whose slot is now free.
    */
-  @org.springframework.transaction.annotation.Transactional
-  public void checkWaitlist(tn.esprit.peakwell.entities.Consultation cancelled) {
+  @Transactional
+  public void checkWaitlist(Consultation cancelled) {
     try {
       Long dietitianId = cancelled.getDietitian() != null
           ? cancelled.getDietitian().getId()
           : dietitianRepo.findFirstBy().map(d -> d.getId()).orElse(null);
       if (dietitianId == null) return;
 
-      List<tn.esprit.peakwell.entities.Consultation> waitlisted =
+      List<Consultation> waitlisted =
           consultationRepo.findWaitlistedByDietitian(dietitianId);
 
       LocalDateTime now = LocalDateTime.now();
-      for (tn.esprit.peakwell.entities.Consultation w : waitlisted) {
+      for (Consultation w : waitlisted) {
         if (w.getScheduledAt().isBefore(now)) continue; // skip past slots
 
         int dur = w.getDurationMinutes() != null ? w.getDurationMinutes() : 60;

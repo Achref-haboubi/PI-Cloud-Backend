@@ -29,7 +29,7 @@ public class ConsultationService {
   private final SymptomEntryRepository symptomRepo;
   private final FeedbackRepository feedbackRepo;
   private final ObjectMapper objectMapper;
-  private final EmailService emailService;
+  private final EmailConsultationService emailService;
   private final DietitianRepository dietitianRepo;
   private final AutoApprovalService autoApprovalService;
 
@@ -528,6 +528,9 @@ public class ConsultationService {
     });
     return result;
   }
-}
 
+  public List<tn.esprit.peakwell.entities.Student> getClientsForDietitian(Long dietitianId) {
+    return consultRepo.findDistinctStudentsByDietitianId(dietitianId);
+  }
+}
 

@@ -1,9 +1,11 @@
 package tn.esprit.peakwell.controller;
 
-import org.hibernate.annotations.Cascade;
 import tn.esprit.peakwell.dto.BiometricRequest;
 import tn.esprit.peakwell.dto.BiometricResponse;
 import tn.esprit.peakwell.dto.HealthAlertDto;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.UserRepository;
+import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.BiometricService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,20 +21,30 @@ import java.util.List;
 public class BiometricController {
 
     private final BiometricService biometricService;
+    private final AuthService authService;
+    private final UserRepository userRepository;
+
+    /** Resolve the current user's DB id from the Keycloak JWT in the security context. */
+    private Long resolveUserId() {
+        String keycloakId = authService.getCurrentUserId();
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found for keycloakId: " + keycloakId));
+        return user.getId();
+    }
 
     @GetMapping
     public ResponseEntity<List<BiometricResponse>> getAll() {
-        return ResponseEntity.ok(biometricService.getAll());
+        return ResponseEntity.ok(biometricService.getAll(resolveUserId()));
     }
 
     @PostMapping
     public ResponseEntity<BiometricResponse> addEntry(@Valid @RequestBody BiometricRequest request) {
-        return ResponseEntity.ok(biometricService.addEntry(request));
+        return ResponseEntity.ok(biometricService.addEntry(request, resolveUserId()));
     }
 
     @GetMapping("/latest")
     public ResponseEntity<BiometricResponse> getLatest() {
-        BiometricResponse latest = biometricService.getLatest();
+        BiometricResponse latest = biometricService.getLatest(resolveUserId());
         return latest != null ? ResponseEntity.ok(latest) : ResponseEntity.noContent().build();
     }
 
@@ -42,8 +54,13 @@ public class BiometricController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/profile/{profileId}")
+    public ResponseEntity<List<BiometricResponse>> getByProfileId(@PathVariable Long profileId) {
+        return ResponseEntity.ok(biometricService.getByProfileId(profileId));
+    }
+
     @GetMapping("/alerts")
     public ResponseEntity<List<HealthAlertDto>> getAlerts() {
-        return ResponseEntity.ok(biometricService.getAlerts());
+        return ResponseEntity.ok(biometricService.getAlerts(resolveUserId()));
     }
 }

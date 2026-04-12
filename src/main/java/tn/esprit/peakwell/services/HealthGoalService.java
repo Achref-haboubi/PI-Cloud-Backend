@@ -93,7 +93,7 @@ public class HealthGoalService {
     String[] labels = {"25% milestone", "50% — halfway!", "75% milestone", "Goal reached!"};
 
     for (int i = 0; i < steps.length; i++) {
-      double value = Math.round((start + diff * steps[i]) * 10.0) / 10.0;
+      double value = Math.round((start + diff * steps[i]) * 100.0) / 100.0;
       milestones.add(GoalMilestone.builder()
         .goal(goal)
         .label(labels[i])

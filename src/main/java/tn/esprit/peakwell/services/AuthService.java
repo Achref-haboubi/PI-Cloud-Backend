@@ -1,171 +1,279 @@
 package tn.esprit.peakwell.services;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
+import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.LoginRequest;
-import tn.esprit.peakwell.dto.SignupRequest;
+import tn.esprit.peakwell.dto.RegisterRequest;
 import tn.esprit.peakwell.entities.Role;
 import tn.esprit.peakwell.entities.User;
-import tn.esprit.peakwell.repositories.userRepository;
-import tn.esprit.peakwell.security.JwtUtils;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
+import tn.esprit.peakwell.repositories.UserRepository;
 
-
+import java.util.Date;
 import java.util.Map;
+
 
 @Service
 @RequiredArgsConstructor
-public class AuthService implements IAuthService {
+public class AuthService implements IAuthService{
 
+  private final KeycloakService keycloakService;
   @Autowired
-  userRepository userRepository;
+  UserRepository userRepository;
 
-  private  final PasswordEncoder passwordEncoder;
-  private final JwtUtils jwtUtils;
-  private final AuthenticationManager authenticationManager;
+  private final IEmailService emailService;
 
-  @Override
-  public ResponseEntity<?> signup(SignupRequest signupRequest) {
+  @Value("${keycloak.server-url}")
+  private String serverUrl;
 
-    if (userRepository.existsByEmail(signupRequest.getEmail())) {
+  @Value("${keycloak.realm}")
+  private String realm;
+
+  @Value("${keycloak.client-id}")
+  private String clientId;
+
+  @Value("${keycloak.client-secret}")
+  private String clientSecret;
+
+  private final RestTemplate restTemplate = new RestTemplate();
+
+  public ResponseEntity<?> login(LoginRequest request) {
+
+    //  Get user from DB
+    User user = userRepository.findByEmail(request.getEmail());
+
+    if (user == null) {
       return ResponseEntity
-        .status(HttpStatus.BAD_REQUEST)
-        .body(Map.of("message", "Email address is already in use"));
+              .status(HttpStatus.UNAUTHORIZED)
+              .body("Invalid email or password");
     }
 
+    //  Check if disabled by admin
+    if (!user.isEnabled()) {
+      return ResponseEntity
+              .status(HttpStatus.FORBIDDEN)
+              .body("Account is disabled by admin");
+    }
+
+    //  Check if locked
+    if (isLocked(user)) {
+      return ResponseEntity
+              .status(HttpStatus.FORBIDDEN)
+              .body("Account locked for 1 hour due to multiple failed attempts");
+    }
+
+    //  Call Keycloak
+    String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "password");
+    body.add("client_id", clientId);
+    body.add("client_secret", clientSecret);
+    body.add("username", request.getEmail());
+    body.add("password", request.getPassword());
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+    HttpEntity<?> entity = new HttpEntity<>(body, headers);
+
     try {
+      ResponseEntity<Map> response =
+              restTemplate.postForEntity(url, entity, Map.class);
+
+      Map<String, Object> res = response.getBody();
+
+      //  SUCCESS  reset attempts
+      handleSuccessLogin(user);
+
+      AuthResponse auth = new AuthResponse();
+      auth.setAccessToken((String) res.get("access_token"));
+      auth.setRefreshToken((String) res.get("refresh_token"));
+      auth.setExpiresIn((Integer) res.get("expires_in"));
+
+      return ResponseEntity.ok(auth);
+
+    } catch (HttpClientErrorException e) {
+
+      //  WRONG PASSWORD
+      if (e.getStatusCode().value() == 401) {
+
+        handleFailedLogin(user);
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body("Invalid email or password");
+      }
+
+      return ResponseEntity
+              .status(e.getStatusCode())
+              .body("Client error from Keycloak");
+
+    } catch (Exception e) {
+
+      return ResponseEntity
+              .status(HttpStatus.INTERNAL_SERVER_ERROR)
+              .body("Authentication server error");
+    }
+  }
+
+
+  @Override
+  public ResponseEntity<?> register(RegisterRequest request) {
+
+    String keycloakId = null;
+
+    try {
+
+      keycloakId = keycloakService.createUser(request);
+
+      System.out.println("EMAIL FROM FRONT: " + request.getEmail());
       User user = new User();
-      user.setEmail(signupRequest.getEmail());
-      user.setFirstName(signupRequest.getFirstName());
-      user.setLastName(signupRequest.getLastName());
-      user.setAge(signupRequest.getAge());
-      user.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
-      user.setRole(Role.STUDENT);
-      user.setEnabled(true);
+      user.setKeycloakId(keycloakId);
+      user.setEmail(request.getEmail());
+      user.setFirstName(request.getFirstName());
+      user.setLastName(request.getLastName());
+      user.setRole(Role.valueOf(request.getRole()));
 
       userRepository.save(user);
 
-      return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+      return ResponseEntity.status(201).body(
+              Map.of("message", "User registered successfully")
+      );
 
     } catch (Exception e) {
-      return ResponseEntity
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body(Map.of("message", "An unexpected error occurred"));
+
+      e.printStackTrace();
+
+      // rollback
+      if (keycloakId != null) {
+        try {
+          keycloakService.deleteUser(keycloakId);
+        } catch (Exception ex) {
+          System.err.println("Rollback failed: " + ex.getMessage());
+        }
+      }
+
+      String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+
+      if (errorMessage.contains("409") || errorMessage.contains("exists")) {
+        return ResponseEntity.status(409).body(Map.of("message", "User already exists"));
+      }
+
+      if (errorMessage.contains("401")) {
+        return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+      }
+
+      if (errorMessage.contains("invalid")) {
+        return ResponseEntity.status(400).body(Map.of("message", "Invalid data"));
+      }
+
+      return ResponseEntity.status(500).body(Map.of("message", "Server error"));
     }
   }
 
   @Override
-  public ResponseEntity<?> login(LoginRequest loginRequest) {
-    try {
-      authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(
-          loginRequest.getEmail(),
-          loginRequest.getPassword()
-        )
+  public String getCurrentUserId() {
+
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+    //  No authentication at all
+    if (authentication == null || !authentication.isAuthenticated()) {
+      throw new ResponseStatusException(
+              HttpStatus.UNAUTHORIZED,
+              "User not authenticated"
       );
-
-      User user = userRepository.findByEmail(loginRequest.getEmail());
-
-      String token = jwtUtils.generateToken(user);
-
-      System.out.println("=== Generated JWT ===");
-      System.out.println("Token: " + token);
-
-      String[] parts = token.split("\\.");
-      String decodedPayload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
-      System.out.println("Decoded payload: " + decodedPayload);
-      System.out.println("=====================");
-
-      return ResponseEntity.ok(Map.of("token", token));
-
-    } catch (BadCredentialsException e) {
-      return ResponseEntity
-        .status(HttpStatus.UNAUTHORIZED)
-        .body(Map.of("message", "Invalid email or password"));
-
-    } catch (Exception e) {
-      return ResponseEntity
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body(Map.of(
-          "message", "Internal server error",
-          "details", e.getMessage()
-        ));
     }
+
+    Object principal = authentication.getPrincipal();
+
+    //  Wrong principal type (not JWT)
+    if (!(principal instanceof Jwt jwt)) {
+      throw new ResponseStatusException(
+              HttpStatus.UNAUTHORIZED,
+              "Invalid authentication token"
+      );
+    }
+
+    //  Missing subject
+    String userId = jwt.getClaimAsString("sub");
+
+    if (userId == null || userId.isEmpty()) {
+      throw new ResponseStatusException(
+              HttpStatus.UNAUTHORIZED,
+              "Invalid token: subject missing"
+      );
+    }
+
+    return userId;
+  }
+
+  @Override
+  public void forgotPassword(String email) {
+    keycloakService.forgotPassword(email);
   }
 
 
-//    @Value("${keycloak.server-url}")
-//    private String serverUrl;
-//
-//    @Value("${keycloak.realm}")
-//    private String realm;
-//
-//    @Value("${keycloak.client-id}")
-//    private String clientId;
-//
-//
-//    @Override
-//    public ResponseEntity<?> login(LoginRequest request) {
-//
-//        String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
-//
-//        System.out.println(" URL: " + url);
-//        System.out.println(" client_id: " + clientId);
-//        System.out.println(" username: " + request.getUsername());
-//        System.out.println(" password: " + request.getPassword());
-//
-//        WebClient client = WebClient.create();
-//
-//        try {
-//            Map response = client.post()
-//                    .uri(url)
-//                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-//                    .body(BodyInserters.fromFormData("client_id", clientId)
-//                            .with("grant_type", "password")
-//                            .with("username", request.getUsername())
-//                            .with("password", request.getPassword()))
-//                    .retrieve()
-//                    .bodyToMono(Map.class)
-//                    .block();
-//
-//            String token = (String) response.get("access_token");
-//
-//            return ResponseEntity.ok(Map.of("token", token));
-//
-//        } catch (WebClientResponseException e) {
-//
-//            try {
-//                ObjectMapper mapper = new ObjectMapper();
-//                JsonNode errorJson = mapper.readTree(e.getResponseBodyAsString());
-//
-//                String errorDescription = errorJson.has("error_description")
-//                        ? errorJson.get("error_description").asText()
-//                        : "Authentication failed";
-//
-//                //  If 401 → return same message
-//                if (e.getStatusCode().value() == 401) {
-//                    return ResponseEntity
-//                            .status(401)
-//                            .body(Map.of("error_description", errorDescription));
-//                }
-//
-//                // Other errors
-//                return ResponseEntity
-//                        .status(500)
-//                        .body(Map.of("error_description", "Something went wrong"));
-//
-//            } catch (Exception ex) {
-//                return ResponseEntity
-//                        .status(500)
-//                        .body(Map.of("error_description", "Something went wrong"));
-//            }
-//        }
-//    }
+  public void handleFailedLogin(User user) {
+
+    user.setFailedAttempts(user.getFailedAttempts() + 1);
+    user.setTotalFailedAttempts(user.getTotalFailedAttempts() + 1);
+
+    if (user.getFailedAttempts() >= 3) {
+
+      user.setAccountLocked(true);
+      user.setLockTime(new Date());
+
+      //  SEND LOCK EMAIL
+      emailService.sendAccountLockedEmail( user );
+    }
+
+    userRepository.save(user);
+  }
+
+  public void handleSuccessLogin(User user) {
+    user.setFailedAttempts(0);
+    user.setAccountLocked(false);
+    user.setLockTime(null);
+
+    userRepository.save(user);
+  }
+
+  public boolean isLocked(User user) {
+
+    if (!user.isAccountLocked()) return false;
+
+    long ONE_HOUR = 5 * 60 * 1000;
+
+    if (user.getLockTime() == null) return false;
+    long diff = new Date().getTime() - user.getLockTime().getTime();
+
+    if (diff > ONE_HOUR) {
+
+      user.setAccountLocked(false);
+      user.setFailedAttempts(0);
+      user.setLockTime(null);
+
+      userRepository.save(user);
+
+      //  SEND UNLOCK EMAIL
+      //emailService.sendAccountUnlockedEmail(user);
+
+      return false;
+    }
+
+    return true;
+  }
 
 }

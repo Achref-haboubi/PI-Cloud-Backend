@@ -7,8 +7,6 @@ import lombok.experimental.FieldDefaults;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Getter
@@ -18,22 +16,21 @@ import org.hibernate.type.SqlTypes;
 @ToString(exclude = "patients")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Dietitian {
-
   @Id
   Long id;
 
   @OneToOne
+  @JsonIgnore
   @MapsId
   @JoinColumn(name = "id")
   User user;
 
+
   String specialization;
   String certification;
   String linkUrl;
-
   Integer experienceYears;
   Double consultationPrice;
-
   @Column(columnDefinition = "TEXT")
   String bio;
 

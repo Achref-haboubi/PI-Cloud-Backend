@@ -38,7 +38,7 @@ public class SlotSuggestionService {
   private final DietitianRepository     dietitianRepo;
   private final ConsultationRepository  consultRepo;
   private final SuggestedSlotRepository slotRepo;
-  private final EmailService            emailService;
+  private final EmailConsultationService            emailService;
 
   @org.springframework.beans.factory.annotation.Value("${app.mail.test-recipient:}")
   private String testRecipient;

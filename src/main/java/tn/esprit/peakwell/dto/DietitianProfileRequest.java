@@ -9,5 +9,4 @@ public class DietitianProfileRequest {
   String linkUrl;
   Integer experienceYears;
   Double consultationPrice;
-  String bio;
 }

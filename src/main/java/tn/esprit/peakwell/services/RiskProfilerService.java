@@ -12,6 +12,7 @@ import tn.esprit.peakwell.repositories.*;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -138,9 +139,22 @@ public class RiskProfilerService {
     List<Consultation> consults = consultRepo.findAllByProfileIdOrderByScheduledAtDesc(pid);
 
     // Demographics
-    LocalDate dob = LocalDate.parse(profile.getDateOfBirth());
-    f.put("age", profile.getDateOfBirth() != null ?
-      ChronoUnit.YEARS.between(dob.atStartOfDay(), LocalDateTime.now()) : 30);
+    long age = 30;
+    if (profile.getDateOfBirth() != null) {
+      try {
+        LocalDate dob = LocalDate.parse(profile.getDateOfBirth(),
+          DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        age = ChronoUnit.YEARS.between(dob, LocalDate.now());
+      } catch (Exception e) {
+        try {
+          LocalDate dob = LocalDate.parse(profile.getDateOfBirth());
+          age = ChronoUnit.YEARS.between(dob, LocalDate.now());
+        } catch (Exception e2) {
+          age = 30;
+        }
+      }
+    }
+    f.put("age", age);
     f.put("gender", "Male".equalsIgnoreCase(profile.getGender()) ? 1 : 0);
 
     // Latest biometrics

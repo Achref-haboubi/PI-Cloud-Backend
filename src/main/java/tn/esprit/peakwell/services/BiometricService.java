@@ -7,9 +7,9 @@ import tn.esprit.peakwell.dto.HealthAlertDto;
 import tn.esprit.peakwell.entities.BiometricEntry;
 import tn.esprit.peakwell.entities.MedicalProfile;
 import tn.esprit.peakwell.repositories.BiometricEntryRepository;
+import tn.esprit.peakwell.repositories.MedicalProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import tn.esprit.peakwell.repositories.MedicalProfileRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,16 +21,23 @@ public class BiometricService {
 
     private final BiometricEntryRepository repository;
     private final MedicalProfileRepository profileRepository;
+    private final NotificationService notificationService;
 
-  public List<BiometricResponse> getAll() {
-        return repository.findAllByOrderByRecordedAtAsc()
+    /** Returns the medical profile for the given user ID. */
+    private MedicalProfile profileForUser(Long userId) {
+        return profileRepository.findByStudentId(userId)
+                .orElseThrow(() -> new RuntimeException("Medical profile not found. Please create your profile first."));
+    }
+
+    public List<BiometricResponse> getAll(Long userId) {
+        MedicalProfile profile = profileForUser(userId);
+        return repository.findAllByProfileIdOrderByRecordedAtAsc(profile.getId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    public BiometricResponse addEntry(BiometricRequest request) {
+    public BiometricResponse addEntry(BiometricRequest request, Long userId) {
         double bmi = Math.round((request.getWeight() / Math.pow(request.getHeight() / 100.0, 2)) * 10.0) / 10.0;
-      MedicalProfile profile = profileRepository.findFirstByOrderByIdAsc()
-        .orElseThrow(() -> new RuntimeException("Medical profile not found. Please create your profile first."));
+        MedicalProfile profile = profileForUser(userId);
 
         BiometricEntry entry = BiometricEntry.builder()
                 .weight(request.getWeight())
@@ -45,21 +52,32 @@ public class BiometricService {
                 .profile(profile)
                 .build();
 
-        return toResponse(repository.save(entry));
+        BiometricResponse saved = toResponse(repository.save(entry));
+        notificationService.checkAndNotify(profile.getId());
+        return saved;
     }
 
-    public BiometricResponse getLatest() {
-        return repository.findTopByOrderByRecordedAtDesc()
+    public BiometricResponse getLatest(Long userId) {
+        MedicalProfile profile = profileForUser(userId);
+        return repository.findAllByProfileIdOrderByRecordedAtAsc(profile.getId())
+                .stream()
+                .reduce((first, second) -> second)
                 .map(this::toResponse)
                 .orElse(null);
+    }
+
+    public List<BiometricResponse> getByProfileId(Long profileId) {
+        return repository.findAllByProfileIdOrderByRecordedAtAsc(profileId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     public void deleteEntry(Long id) {
         repository.deleteById(id);
     }
 
-    public List<HealthAlertDto> getAlerts() {
-        List<BiometricEntry> entries = repository.findAllByOrderByRecordedAtAsc();
+    public List<HealthAlertDto> getAlerts(Long userId) {
+        MedicalProfile profile = profileForUser(userId);
+        List<BiometricEntry> entries = repository.findAllByProfileIdOrderByRecordedAtAsc(profile.getId());
         List<HealthAlertDto> alerts = new ArrayList<>();
         if (entries.isEmpty()) return alerts;
 

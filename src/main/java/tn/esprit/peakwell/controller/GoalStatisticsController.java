@@ -12,10 +12,10 @@ import java.util.Map;
 @CrossOrigin("*")
 public class GoalStatisticsController {
 
-    private final GoalStatisticsService statisticsService;
+  private final GoalStatisticsService statisticsService;
 
-    @GetMapping
-    public Map<String, Object> getStatistics() {
-        return statisticsService.getStatistics();
-    }
+  @GetMapping
+  public Map<String, Object> getStatistics() {
+    return statisticsService.getStatistics();
+  }
 }

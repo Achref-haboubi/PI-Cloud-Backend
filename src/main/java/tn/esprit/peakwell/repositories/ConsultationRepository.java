@@ -40,13 +40,23 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
       """)
   List<Consultation> findWaitlistedByDietitian(@Param("dietitianId") Long dietitianId);
 
+  /** Distinct students who have at least one non-cancelled consultation with this dietitian */
+  @Query("""
+      SELECT DISTINCT c.profile.student FROM Consultation c
+      WHERE c.dietitian.id = :dietitianId
+        AND c.status != 'CANCELLED'
+        AND c.profile IS NOT NULL
+        AND c.profile.student IS NOT NULL
+      """)
+  List<tn.esprit.peakwell.entities.Student> findDistinctStudentsByDietitianId(@Param("dietitianId") Long dietitianId);
+
   /** Check if the dietitian already has a confirmed (UPCOMING) consultation overlapping the given window */
   @Query("""
       SELECT COUNT(c) > 0 FROM Consultation c
       WHERE c.dietitian.id = :dietitianId
         AND c.status = 'UPCOMING'
         AND c.scheduledAt < :windowEnd
-        AND FUNCTION('TIMESTAMPADD', MINUTE, c.durationMinutes, c.scheduledAt) > :windowStart
+        AND timestampadd(minute, c.durationMinutes, c.scheduledAt) > :windowStart
       """)
   boolean existsConflict(@Param("dietitianId") Long dietitianId,
                          @Param("windowStart") LocalDateTime windowStart,
