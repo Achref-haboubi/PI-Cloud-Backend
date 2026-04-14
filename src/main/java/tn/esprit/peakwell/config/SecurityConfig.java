@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/meals/**").permitAll()
                         .requestMatchers("/menu/**").permitAll()
                         .requestMatchers("/favorites/**").permitAll()
+                        .requestMatchers("/captcha/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
