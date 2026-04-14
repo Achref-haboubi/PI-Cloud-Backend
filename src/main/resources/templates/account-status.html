@@ -3,179 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <title>Account Status</title>
-
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #f0ebe5;
-      font-family: Arial, sans-serif;
-    }
-
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: #ffffff;
-      border-radius: 20px;
-      overflow: hidden;
-      border: 1px solid #ede8e3;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #1e1a16, #c96a3f);
-      padding: 20px 30px;
-      color: white;
-      font-size: 20px;
-      font-weight: bold;
-    }
-
-    .body {
-      padding: 35px;
-      color: #3d3530;
-      line-height: 1.7;
-      font-size: 15px;
-    }
-
-    .status {
-      display: inline-block;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      margin-top: 10px;
-    }
-
-    .active {
-      background: #e6f7ed;
-      color: #1a7f37;
-    }
-
-    .banned {
-      background: #fdecea;
-      color: #b42318;
-    }
-
-    .cta {
-      display: inline-block;
-      margin-top: 25px;
-      padding: 12px 25px;
-      background: #c96a3f;
-      color: #ffffff;
-      text-decoration: none;
-      border-radius: 10px;
-      font-weight: 600;
-    }
-
-    .footer {
-      background: #1e1a16;
-      color: #d6ccc2;
-      padding: 30px;
-      text-align: center;
-    }
-
-    .footer-title {
-      font-size: 18px;
-      color: #ffffff;
-      margin-bottom: 10px;
-    }
-
-    .footer-text {
-      font-size: 13px;
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-
-    .social-icons a {
-      margin: 0 8px;
-      text-decoration: none;
-      font-size: 18px;
-    }
-
-    .copyright {
-      margin-top: 20px;
-      font-size: 12px;
-      color: #a89f98;
-    }
-  </style>
 </head>
+<body style="margin:0;padding:0;background:#f5f1ed;font-family:'Segoe UI',Arial,sans-serif;">
 
-<body>
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+  <tr><td align="center">
 
-<div class="container">
+    <table width="560" cellpadding="0" cellspacing="0"
+           style="background:#ffffff;border-radius:16px;overflow:hidden;">
 
-  <!-- HEADER -->
-  <div class="header">
-    PeakWell
-  </div>
+      <!-- Header -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#c96a3f,#e88f68);padding:32px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-family:'Segoe UI',Arial,sans-serif;">🌿 PeakWell</h1>
+          <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;font-family:'Segoe UI',Arial,sans-serif;">
+            Health &amp; Wellness Platform
+          </p>
+        </td>
+      </tr>
 
-  <!-- BODY -->
-  <div class="body">
+      <!-- Body -->
+      <tr>
+        <td style="padding:32px 40px;color:#3d3530;font-size:15px;line-height:1.7;font-family:'Segoe UI',Arial,sans-serif;">
 
-    <p>
-      Hello <strong th:text="${name}">User</strong>,
-    </p>
+          <p style="margin:0 0 16px;">
+            Hello, <strong th:text="${name}">User</strong>
+          </p>
 
-    <p th:text="${message}">
-      Your account status has been updated.
-    </p>
+          <p style="margin:0 0 16px;" th:text="${message}">
+            Your account status has been updated.
+          </p>
 
-    <!-- STATUS -->
-    <div>
-      Status:
-      <span th:text="${status}"
-            th:classappend="${status == 'ACTIVE'} ? 'status active' : 'status banned'">
-        ACTIVE
-      </span>
-    </div>
+          <p style="margin:0 0 20px;">
+            Status:
+            <span th:text="${status}"
+                  th:style="${status == 'ACTIVE'}
+                    ? 'display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:#e6f7ed;color:#1a7f37;'
+                    : 'display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:#fdecea;color:#b42318;'">
+              ACTIVE
+            </span>
+          </p>
 
-    <!-- CTA ONLY IF ACTIVE -->
-    <div th:if="${status == 'ACTIVE'}">
-      <a th:href="${appUrl}" class="cta">
-        Go to Platform →
-      </a>
-    </div>
+          <!-- CTA only if ACTIVE -->
+          <p th:if="${status == 'ACTIVE'}" style="text-align:center;margin:28px 0;">
+            <a th:href="${appUrl}"
+               style="background:#c96a3f;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-family:'Segoe UI',Arial,sans-serif;">
+              Go to Platform →
+            </a>
+          </p>
 
-    <p style="margin-top: 30px;">
-      Regards,<br>
-      <strong>PeakWell Team</strong>
-    </p>
+          <p style="margin:28px 0 0;">
+            Regards,<br>
+            <strong>PeakWell Team</strong>
+          </p>
 
-  </div>
+        </td>
+      </tr>
 
-  <!-- FOOTER -->
-  <div class="footer">
+      <!-- Footer -->
+      <tr>
+        <td style="background:#f9f6f3;padding:20px 32px;text-align:center;">
+          <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#3d3530;font-family:'Segoe UI',Arial,sans-serif;">
+            Nourish &amp; Bloom
+          </p>
+          <p style="margin:0 0 14px;font-size:12px;color:#888;line-height:1.6;font-family:'Segoe UI',Arial,sans-serif;">
+            Helping you eat well and live fully —<br>
+            with real food, real science, and real community since 2018.
+          </p>
+          <div style="margin-bottom:14px;">
+            <a href="https://facebook.com" target="_blank" style="margin:0 6px;">
+              <img src="https://res.cloudinary.com/dbmb50bso/image/upload/v1775412787/facebook-brands-solid_d2bf0z.png"
+                   width="22" height="22" alt="Facebook" style="opacity:0.5;">
+            </a>
+            <a href="https://instagram.com" target="_blank" style="margin:0 6px;">
+              <img src="https://res.cloudinary.com/dbmb50bso/image/upload/v1775412787/instagram-brands-solid_cfl1ls.png"
+                   width="22" height="22" alt="Instagram" style="opacity:0.5;">
+            </a>
+          </div>
+          <p style="margin:0;font-size:12px;color:#aaa;font-family:'Segoe UI',Arial,sans-serif;">
+            © 2026 PeakWell · All rights reserved.
+          </p>
+        </td>
+      </tr>
 
-    <div class="footer-title">
-      Nourish &amp; Bloom
-    </div>
+    </table>
 
-    <div class="footer-text">
-      Helping you eat well and live fully —<br>
-      with real food, real science, and real community since 2018.
-    </div>
-
-    <!-- SOCIAL ICONS -->
-     <div style="margin-bottom:15px;">
-    
-    <a href="https://facebook.com" target="_blank" style="margin:0 6px;">
-      <img src="https://res.cloudinary.com/dbmb50bso/image/upload/v1775412787/facebook-brands-solid_d2bf0z.png"
-           width="26" height="26" alt="Facebook">
-    </a>
-
-    <a href="https://instagram.com" target="_blank" style="margin:0 6px;">
-      <img src="https://res.cloudinary.com/dbmb50bso/image/upload/v1775412787/instagram-brands-solid_cfl1ls.png"
-           width="26" height="26" alt="Instagram">
-    </a>
-
-  </div>
-
-    <div class="copyright">
-      © 2026 PeakWell · All rights reserved.
-    </div>
-
-  </div>
-
-</div>
+  </td></tr>
+</table>
 
 </body>
 </html>

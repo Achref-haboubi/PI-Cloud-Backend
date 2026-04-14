@@ -26,15 +26,14 @@ public class AuthController {
     IAuthService authService;
 
     @PostMapping("/login")
-public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-    return authService.login(request);
-}
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
 
-
-   @PostMapping("/register")
-public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-    return authService.register(request);
-}
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        return authService.register(request);
+    }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
@@ -43,8 +42,7 @@ public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
         Map<String, Object> response = Map.of(
                 "status", HttpStatus.OK.value(),
-                "message", "Reset password email sent successfully"
-        );
+                "message", "Reset password email sent successfully");
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -60,20 +58,19 @@ public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
     }
 
     @PostMapping("/google/complete-signup")
-public ResponseEntity<?> completeGoogleSignup(@RequestBody GoogleSignupRequest request) {
+    public ResponseEntity<?> completeGoogleSignup(@RequestBody GoogleSignupRequest request) {
 
-    String accessToken = request.getAccessToken();
+        String accessToken = request.getAccessToken();
 
-    Role role;
-    try {
-        role = Role.valueOf(request.getRole().toUpperCase());
-    } catch (Exception e) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("message", "Invalid role"));
+        Role role;
+        try {
+            role = Role.valueOf(request.getRole().toUpperCase());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Invalid role"));
+        }
+
+        return authService.completeGoogleSignup(accessToken, role);
     }
-
-    return authService.completeGoogleSignup(accessToken, role);
-}
-
 
 }
