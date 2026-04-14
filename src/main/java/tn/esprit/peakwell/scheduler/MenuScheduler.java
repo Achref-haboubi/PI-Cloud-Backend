@@ -37,7 +37,7 @@ public class MenuScheduler {
 
         if (!isWeekGenerated(nextWeek)) {
             System.out.println("📅 Génération semaine prochaine...");
-            menuService.generateWeeklyMenu(nextWeek);
+            //menuService.generateWeeklyMenu(nextWeek);
         }
     }
 
@@ -50,7 +50,7 @@ public class MenuScheduler {
 
         if (!isWeekGenerated(currentWeek)) {
             System.out.println("🔥 Génération semaine actuelle...");
-            menuService.generateWeeklyMenu(currentWeek);
+            //menuService.generateWeeklyMenu(currentWeek);
         } else {
             System.out.println("✅ Semaine déjà générée");
         }
