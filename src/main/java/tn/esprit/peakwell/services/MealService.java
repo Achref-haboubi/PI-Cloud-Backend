@@ -1,5 +1,7 @@
 package tn.esprit.peakwell.services;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.IngredientDTO;
 import tn.esprit.peakwell.dto.MealDTO;
@@ -68,7 +70,7 @@ public class MealService {
         String text = buildMealText(meal);
         var prediction = aiAlergeneService.predictAllergens(text);
         meal.setPredictedAllergens(prediction.getPredictedAllergens());
-
+        meal.setUserId(getCurrentUserId());
         Meal saved = mealRepository.save(meal);
 
         return mapMealToDTO(saved);
@@ -80,6 +82,10 @@ public class MealService {
 
         Meal meal = mealRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
+
+        if (!meal.getUserId().equals(getCurrentUserId())) {
+            throw new RuntimeException("Unauthorized");
+        }
 
         // RESTORE STOCK
         for (Ingredient ing : meal.getIngredients()) {
@@ -109,6 +115,7 @@ public class MealService {
             ing.setProduct(product);
             ing.setQuantity(req.getQuantity());
             ing.setMeal(meal);
+
             meal.getIngredients().add(ing);
         }
 
@@ -121,6 +128,10 @@ public class MealService {
 
         Meal meal = mealRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
+
+        if (!meal.getUserId().equals(getCurrentUserId())) {
+            throw new RuntimeException("Unauthorized");
+        }
 
         for (Ingredient ing : meal.getIngredients()) {
             Product product = ing.getProduct();
@@ -202,15 +213,21 @@ public class MealService {
     }
 
     public List<MealDTO> getAllMeals() {
+
         return mealRepository.findAll()
                 .stream()
                 .map(this::mapMealToDTO)
-                .collect(Collectors.toList()); 
+                .collect(Collectors.toList());
     }
 
     public MealDTO getMeal(Long id) {
+
         Meal meal = mealRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
+
+        if (!meal.getUserId().equals(getCurrentUserId())) {
+            throw new RuntimeException("Unauthorized");
+        }
 
         return mapMealToDTO(meal);
     }
@@ -244,13 +261,25 @@ public class MealService {
     }
 
     public void attachImage(Long mealId, String fileName) {
+
         Meal meal = mealRepository.findById(mealId)
-            .orElseThrow(() -> new RuntimeException("Meal not found"));
+                .orElseThrow(() -> new RuntimeException("Meal not found"));
+
+        if (!meal.getUserId().equals(getCurrentUserId())) {
+            throw new RuntimeException("Unauthorized");
+        }
 
         meal.setImage(fileName);
         mealRepository.save(meal);
     }
 
-    
+    private String getCurrentUserId() {
+
+        if (!(SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken token)) {
+            return null; // évite crash si pas connecté
+        }
+
+        return token.getToken().getSubject();
+}
 
 }

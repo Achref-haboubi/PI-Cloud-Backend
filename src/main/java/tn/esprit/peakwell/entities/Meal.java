@@ -46,4 +46,6 @@ public class Meal {
     private List<String> predictedAllergens;
 
     private int favoriteCount = 0;
+
+    private String userId;
 }

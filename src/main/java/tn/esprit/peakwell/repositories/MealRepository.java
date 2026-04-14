@@ -10,4 +10,5 @@ public interface MealRepository extends JpaRepository<Meal, Long> {
     List<Meal> findByCategory(String category);
     List<Meal> findByTags(String tags);
     List<Meal> findByCategoryIgnoreCase(String category);
+    List<Meal> findByUserId(String userId);
 }

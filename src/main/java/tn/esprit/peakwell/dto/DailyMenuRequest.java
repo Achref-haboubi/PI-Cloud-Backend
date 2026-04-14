@@ -14,5 +14,6 @@ public class DailyMenuRequest {
     private Long dinnerId;
 
     private LocalDate date;
+    private Long id;
     
 }

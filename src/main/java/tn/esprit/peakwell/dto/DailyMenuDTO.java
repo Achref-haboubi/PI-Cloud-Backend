@@ -15,4 +15,5 @@ public class DailyMenuDTO {
     private MealDTO breakfast;
     private MealDTO lunch;
     private MealDTO dinner;
+    private Long id;
 }

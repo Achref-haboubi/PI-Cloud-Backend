@@ -1,6 +1,5 @@
 package tn.esprit.peakwell.controller;
 
-import tn.esprit.peakwell.entities.Meal;
 import tn.esprit.peakwell.dto.MealDTO;
 import tn.esprit.peakwell.dto.MealRequest;
 import tn.esprit.peakwell.services.MealService;
@@ -19,7 +18,6 @@ import java.util.UUID;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.Files;
 
 @RestController
 @RequestMapping("/meals")

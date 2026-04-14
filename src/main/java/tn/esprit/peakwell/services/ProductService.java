@@ -8,6 +8,10 @@ import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.entities.StockStatus;
 import tn.esprit.peakwell.repositories.ProductRepository;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+
 import java.util.List;
 
 @Service
@@ -69,11 +73,12 @@ public class ProductService {
 
         Product product = mapToEntity(request);
 
-        // Définir minStock
+        // récupérer user connecté
+        String userId = getCurrentUserId();
 
-            product.setMinStock(getDefaultMinStock(product.getCategory_Product()));
+        product.setUserId(userId);
 
-        // Calculer le status
+        product.setMinStock(getDefaultMinStock(product.getCategory_Product()));
         updateStockStatus(product);
 
         Product saved = productRepository.save(product);
@@ -112,8 +117,10 @@ public class ProductService {
         product.setCategory_Product(request.getCategory_Product());
         product.setStock(request.getStock());
         product.setUnit(request.getUnit());
-        product.setImage(request.getImage());
+        
+        
         product.setMinStock(request.getMinStock());
+
         updateStockStatus(product);
 
         if (oldStatus != product.getStockStatus()
@@ -218,5 +225,13 @@ public class ProductService {
         }
     }
 
+    private String getCurrentUserId() {
+        JwtAuthenticationToken token =
+            (JwtAuthenticationToken) SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        return token.getToken().getSubject();
+    }
 
 }

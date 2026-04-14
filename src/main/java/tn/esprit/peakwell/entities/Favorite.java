@@ -13,4 +13,8 @@ public class Favorite {
 
     @ManyToOne
     private Meal meal;
+
+    private String userId;
+
+
 }

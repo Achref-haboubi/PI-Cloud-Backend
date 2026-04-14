@@ -26,5 +26,7 @@ public class DailyMenu {
 
     @ManyToOne
     private Meal dinner;
+
+    private Integer displayOrder;
     
 }

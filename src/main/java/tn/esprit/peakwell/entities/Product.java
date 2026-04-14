@@ -50,4 +50,6 @@ public class Product {
 
     @Enumerated(EnumType.STRING)
     private StockStatus stockStatus;
+
+    private String userId;
 }

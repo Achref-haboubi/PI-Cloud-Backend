@@ -15,8 +15,9 @@ import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Collections;
+import java.util.Comparator;
+
 
 @Service
 public class MenuService {
@@ -92,6 +93,8 @@ public class MenuService {
             DailyMenu menu = new DailyMenu();
             menu.setDate(date);
 
+            menu.setDisplayOrder(i);
+
             menu.setBreakfast(breakfasts.get(i % breakfasts.size()));
             menu.setLunch(lunches.get(i % lunches.size()));
             menu.setDinner(dinners.get(i % dinners.size()));
@@ -141,8 +144,36 @@ public class MenuService {
 
         return menuRepository.findByDateBetween(startOfWeek, endOfWeek)
                 .stream()
+                .sorted(Comparator.comparing(DailyMenu::getDisplayOrder))
                 .map(this::mapToDTO)
                 .toList();
+    }
+
+    @Transactional
+    public void reorderMenus(List<Long> orderedIds) {
+
+        // 1. récupérer tous les menus dans l’ordre actuel
+        List<DailyMenu> menus = orderedIds.stream()
+                .map(id -> menuRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Menu not found")))
+                .toList();
+
+        // 2. récupérer toutes les dates triées
+        List<LocalDate> dates = menus.stream()
+                .map(DailyMenu::getDate)
+                .sorted()
+                .toList();
+
+        // 3. réassigner les dates selon le nouvel ordre
+        for (int i = 0; i < menus.size(); i++) {
+
+            DailyMenu menu = menus.get(i);
+
+            menu.setDate(dates.get(i));          // 🔥 SWAP DATE
+            menu.setDisplayOrder(i);             // optionnel
+
+            menuRepository.save(menu);
+        }
     }
 
     // GET BY DATE
@@ -165,7 +196,8 @@ public class MenuService {
                 menu.getDate(),
                 mapMealToDTO(menu.getBreakfast()),
                 mapMealToDTO(menu.getLunch()),
-                mapMealToDTO(menu.getDinner())
+                mapMealToDTO(menu.getDinner()),
+                menu.getId()
         );
     }
 

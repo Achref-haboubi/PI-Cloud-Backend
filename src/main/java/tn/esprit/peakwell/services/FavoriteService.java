@@ -1,6 +1,9 @@
 package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.entities.Favorite;
 import tn.esprit.peakwell.entities.Meal;
@@ -19,21 +22,26 @@ public class FavoriteService {
 
     public void toggleFavorite(Long mealId) {
 
-        Optional<Favorite> existing =
-                favoriteRepository.findByMealId(mealId);
+        String userId = getCurrentUserId(); 
 
         Meal meal = mealRepository.findById(mealId)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
 
+        Optional<Favorite> existing =
+                favoriteRepository.findByMealIdAndUserId(mealId, userId); 
+
         if (existing.isPresent()) {
+
             favoriteRepository.delete(existing.get());
 
             // decrement
             meal.setFavoriteCount(Math.max(0, meal.getFavoriteCount() - 1));
 
         } else {
+
             Favorite fav = new Favorite();
             fav.setMeal(meal);
+            fav.setUserId(userId); 
 
             favoriteRepository.save(fav);
 
@@ -45,9 +53,19 @@ public class FavoriteService {
     }
 
     public List<Long> getFavoriteMealIds() {
-        return favoriteRepository.findAll()
+
+        String userId = getCurrentUserId(); 
+
+        return favoriteRepository.findByUserId(userId)
                 .stream()
                 .map(f -> f.getMeal().getId())
                 .toList();
+    }
+
+    public String getCurrentUserId() {
+        JwtAuthenticationToken token =
+            (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+
+        return token.getToken().getSubject(); 
     }
 }

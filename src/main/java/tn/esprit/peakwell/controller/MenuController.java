@@ -1,6 +1,5 @@
 package tn.esprit.peakwell.controller;
 
-import tn.esprit.peakwell.entities.DailyMenu;
 import tn.esprit.peakwell.dto.DailyMenuDTO;
 import tn.esprit.peakwell.dto.DailyMenuRequest;
 import tn.esprit.peakwell.services.MenuService;
@@ -75,5 +74,11 @@ public class MenuController {
     @DeleteMapping("/{id}")
     public void deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
+    }
+
+    @PutMapping("/reorder")
+    public void reorderMenus(@RequestBody List<Long> orderedIds) {
+        System.out.println("🔥 IDs reçus : " + orderedIds);
+        menuService.reorderMenus(orderedIds);
     }
 }
