@@ -6,6 +6,7 @@ import tn.esprit.peakwell.dto.ProductRequest;
 import tn.esprit.peakwell.entities.Category_Product;
 import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.entities.StockStatus;
+import tn.esprit.peakwell.repositories.IngredientRepository;
 import tn.esprit.peakwell.repositories.ProductRepository;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +20,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final EmailService emailService;
+    private final IngredientRepository ingredientRepository;
 
     private Product mapToEntity(ProductRequest dto) {
 
@@ -64,9 +66,10 @@ public class ProductService {
         return dto;
     }
 
-    public ProductService(ProductRepository productRepository, EmailService emailService) {
+    public ProductService(ProductRepository productRepository, EmailService emailService, IngredientRepository ingredientRepository) {
         this.productRepository = productRepository;
         this.emailService = emailService;
+        this.ingredientRepository = ingredientRepository;
     }
 
     public ProductDTO addProduct(ProductRequest request) {
@@ -135,6 +138,11 @@ public class ProductService {
     }
 
     public void deleteProduct(Long id) {
+
+        if (ingredientRepository.existsByProductId(id)) {
+            throw new RuntimeException("PRODUCT_IN_USE");
+        }
+
         productRepository.deleteById(id);
     }
 
