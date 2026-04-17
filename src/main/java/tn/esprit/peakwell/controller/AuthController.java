@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import tn.esprit.peakwell.dto.FaceLoginRequest;
 import tn.esprit.peakwell.dto.ForgotPasswordRequest;
 import tn.esprit.peakwell.dto.GoogleSignupRequest;
 import tn.esprit.peakwell.dto.LoginRequest;
@@ -28,6 +29,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    // face detection login
+    @PostMapping("/face-login")
+    public ResponseEntity<?> faceLogin(@RequestBody FaceLoginRequest request) {
+        return authService.faceLogin(request);
     }
 
     @PostMapping("/register")
