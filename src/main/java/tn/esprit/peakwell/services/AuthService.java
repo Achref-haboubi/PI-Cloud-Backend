@@ -37,7 +37,6 @@ public class AuthService implements IAuthService {
     private final AiService aiService;
     @Autowired
     UserRepository userRepository;
-    
 
     private final IEmailService emailService;
 
@@ -147,7 +146,7 @@ public class AuthService implements IAuthService {
     @Override
     public ResponseEntity<?> faceLogin(FaceLoginRequest request) {
 
-        //  Find user by email
+        // Find user by email
         User user = userRepository.findByEmail(request.getEmail());
         if (user == null) {
             return ResponseEntity
@@ -155,7 +154,7 @@ public class AuthService implements IAuthService {
                     .body(Map.of("message", "No account found with this email."));
         }
 
-        //  Check account is active
+        // Check account is active
         if (!user.isEnabled()) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
@@ -168,14 +167,14 @@ public class AuthService implements IAuthService {
                     .body(Map.of("message", "Account locked due to multiple failed attempts."));
         }
 
-        //  Check a profile image exists in DB
+        // Check a profile image exists in DB
         if (user.getImgUrl() == null || user.getImgUrl().isBlank()) {
             return ResponseEntity
                     .status(HttpStatus.UNPROCESSABLE_ENTITY)
                     .body(Map.of("message", "No profile image on file. Face login unavailable for this account."));
         }
 
-        //  Call Face++ to compare
+        // Call Face++ to compare
         double confidence = aiService.compareFaces(request.getImageBase64(), user.getImgUrl());
 
         if (confidence < 0) {
@@ -192,7 +191,7 @@ public class AuthService implements IAuthService {
                             "confidence", confidence));
         }
 
-        //  Face matched than get Keycloak token via service account impersonation
+        // Face matched than get Keycloak token via service account impersonation
         try {
             String tokenUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
@@ -210,7 +209,7 @@ public class AuthService implements IAuthService {
 
             String serviceAccountToken = (String) saResponse.getBody().get("access_token");
 
-            // Step token exchange  impersonate the user
+            // Step token exchange impersonate the user
             MultiValueMap<String, String> exchangeBody = new LinkedMultiValueMap<>();
             exchangeBody.add("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange");
             exchangeBody.add("client_id", clientId);
@@ -536,4 +535,32 @@ public class AuthService implements IAuthService {
         }
     }
 
+    @Override
+    public void changePassword(Authentication authentication, String oldPassword, String newPassword) {
+
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
+
+        if (oldPassword == null || oldPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is required");
+        }
+
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password is required");
+        }
+
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+
+        String email = jwt.getClaim("email");
+        String userId = jwt.getSubject();
+
+        boolean valid = keycloakService.verifyOldPassword(email, oldPassword);
+
+        if (!valid) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Old password is incorrect");
+        }
+
+        keycloakService.updatePassword(userId, newPassword);
+    }
 }

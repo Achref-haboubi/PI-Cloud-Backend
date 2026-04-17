@@ -3,6 +3,7 @@ package tn.esprit.peakwell.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import tn.esprit.peakwell.dto.ChangePasswordRequest;
 import tn.esprit.peakwell.dto.FaceLoginRequest;
 import tn.esprit.peakwell.dto.ForgotPasswordRequest;
 import tn.esprit.peakwell.dto.GoogleSignupRequest;
@@ -54,6 +56,22 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+
+    @PostMapping("/change-password")
+public ResponseEntity<?> changePassword(
+        @RequestBody ChangePasswordRequest request, Authentication authentication) {
+
+    authService.changePassword(
+            authentication,
+            request.getOldPassword(),
+            request.getNewPassword()
+    );
+
+    return ResponseEntity.ok(Map.of(
+            "status", 200,
+            "message", "Password updated successfully"
+    ));
+}
     @GetMapping("/google-url")
     public ResponseEntity<Map<String, String>> getGoogleAuthUrl(@RequestParam String flow) {
         return ResponseEntity.ok(Map.of("url", authService.generateGoogleAuthUrl()));

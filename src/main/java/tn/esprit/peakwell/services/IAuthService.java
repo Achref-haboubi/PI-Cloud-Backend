@@ -6,6 +6,7 @@ import tn.esprit.peakwell.dto.RegisterRequest;
 import tn.esprit.peakwell.entities.Role;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 public interface IAuthService {
 
@@ -16,6 +17,8 @@ public interface IAuthService {
     String getCurrentUserId();
 
     void forgotPassword(String email);
+
+    void changePassword(Authentication authentication, String oldPassword, String newPassword);
 
     String generateGoogleAuthUrl();
 
