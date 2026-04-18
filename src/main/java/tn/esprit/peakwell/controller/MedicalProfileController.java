@@ -1,16 +1,21 @@
 package tn.esprit.peakwell.controller;
 
+import tn.esprit.peakwell.dto.BiometricResponse;
 import tn.esprit.peakwell.dto.MedicalProfileRequest;
 import tn.esprit.peakwell.dto.MedicalProfileResponse;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 import tn.esprit.peakwell.services.AuthService;
+import tn.esprit.peakwell.services.BiometricService;
 import tn.esprit.peakwell.services.MedicalProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -19,6 +24,7 @@ import java.util.List;
 public class MedicalProfileController {
 
     private final MedicalProfileService profileService;
+    private final BiometricService biometricService;
     private final AuthService authService;
     private final UserRepository userRepository;
 
@@ -70,5 +76,52 @@ public class MedicalProfileController {
     public ResponseEntity<MedicalProfileResponse> assignDietitian(
             @PathVariable Long id, @PathVariable Long dietitianId) {
         return ResponseEntity.ok(profileService.assignDietitian(id, dietitianId));
+    }
+
+    /** GET /api/profile/all-with-biometrics — admin view: all profiles + latest biometric entry */
+    @GetMapping("/all-with-biometrics")
+    public ResponseEntity<List<Map<String, Object>>> getAllWithBiometrics() {
+        List<MedicalProfileResponse> profiles = profileService.getAllProfiles();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (MedicalProfileResponse p : profiles) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id",            p.getId());
+            m.put("firstName",     p.getFirstName());
+            m.put("lastName",      p.getLastName());
+            m.put("gender",        p.getGender());
+            m.put("bloodType",     p.getBloodType());
+            m.put("height",        p.getHeight());
+            m.put("studentId",     p.getStudentId());
+            m.put("studentName",   p.getStudentName());
+            m.put("dietitianName", p.getDietitianName());
+            m.put("complete",      p.isComplete());
+            String imageUrl = (p.getStudentId() != null)
+                ? userRepository.findById(p.getStudentId()).map(User::getImgUrl).orElse(null)
+                : null;
+            m.put("imageUrl", imageUrl);
+            List<BiometricResponse> bios = biometricService.getByProfileId(p.getId());
+            if (!bios.isEmpty()) {
+                BiometricResponse latest = bios.get(bios.size() - 1);
+                m.put("weight",     latest.getWeight());
+                m.put("bmi",        latest.getBmi());
+                m.put("bodyFat",    latest.getBodyFat());
+                m.put("muscleMass", latest.getMuscleMass());
+                m.put("systolic",   latest.getSystolic());
+                m.put("diastolic",  latest.getDiastolic());
+                m.put("glucose",    latest.getGlucose());
+                m.put("recordedAt", latest.getRecordedAt());
+            } else {
+                m.put("weight",     null);
+                m.put("bmi",        null);
+                m.put("bodyFat",    null);
+                m.put("muscleMass", null);
+                m.put("systolic",   null);
+                m.put("diastolic",  null);
+                m.put("glucose",    null);
+                m.put("recordedAt", null);
+            }
+            result.add(m);
+        }
+        return ResponseEntity.ok(result);
     }
 }

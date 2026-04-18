@@ -17,24 +17,32 @@ public class SymptomPredictorController {
   private final SymptomPredictorService predictorService;
 
   @PostMapping("/severity")
-  public ResponseEntity<Map<String, Object>> predictSeverity(@RequestBody Map<String, Object> request) {
-    int stress = ((Number) request.getOrDefault("stressLevel", 3)).intValue();
-    int mood = ((Number) request.getOrDefault("mood", 3)).intValue();
-    int energy = ((Number) request.getOrDefault("energyLevel", 3)).intValue();
-    double sleep = ((Number) request.getOrDefault("sleepHours", 7.0)).doubleValue();
-    int water = ((Number) request.getOrDefault("waterIntakeMl", 2000)).intValue();
-    String time = (String) request.getOrDefault("timeOfDay", "morning");
-    List<String> symptoms = (List<String>) request.getOrDefault("symptoms", List.of());
-    List<String> triggers = (List<String>) request.getOrDefault("triggers", List.of());
-    int age = ((Number) request.getOrDefault("age", 30)).intValue();
-    double bmi = ((Number) request.getOrDefault("bmi", 24.0)).doubleValue();
-    boolean chronic = Boolean.TRUE.equals(request.getOrDefault("hasChronicCondition", false));
-    double exerciseHrs = ((Number) request.getOrDefault("exerciseHoursWeekly", 3.0)).doubleValue();
-    int caffeineCups = ((Number) request.getOrDefault("caffeineCupsDaily", 2)).intValue();
+  public ResponseEntity<Map<String, Object>> predictSeverity(@RequestBody Map<String, Object> req) {
+    int    stress       = ((Number) req.getOrDefault("stressLevel",       3)).intValue();
+    int    mood         = ((Number) req.getOrDefault("mood",              3)).intValue();
+    int    energy       = ((Number) req.getOrDefault("energyLevel",       3)).intValue();
+    double sleep        = ((Number) req.getOrDefault("sleepHours",        7.0)).doubleValue();
+    int    water        = ((Number) req.getOrDefault("waterIntakeMl",     2000)).intValue();
+    String time         = (String)  req.getOrDefault("timeOfDay",         "morning");
+    List<String> symptoms = (List<String>) req.getOrDefault("symptoms",  List.of());
+    List<String> triggers = (List<String>) req.getOrDefault("triggers",  List.of());
+    int    age          = ((Number) req.getOrDefault("age",               30)).intValue();
+    double bmi          = ((Number) req.getOrDefault("bmi",               24.0)).doubleValue();
+    boolean chronic     = Boolean.TRUE.equals(req.getOrDefault("hasChronicCondition", false));
+    double exerciseHrs  = ((Number) req.getOrDefault("exerciseHoursWeekly", 3.0)).doubleValue();
+    int    caffeineCups = ((Number) req.getOrDefault("caffeineCupsDaily", 2)).intValue();
+
+    // Biometric fields — null when user hasn't recorded them
+    Double systolicBp     = req.get("systolicBp")     != null ? ((Number) req.get("systolicBp")).doubleValue()     : null;
+    Double diastolicBp    = req.get("diastolicBp")    != null ? ((Number) req.get("diastolicBp")).doubleValue()    : null;
+    Double bodyFatPercent = req.get("bodyFatPercent") != null ? ((Number) req.get("bodyFatPercent")).doubleValue() : null;
+    Double muscleMassKg   = req.get("muscleMassKg")   != null ? ((Number) req.get("muscleMassKg")).doubleValue()   : null;
+    Double glucoseMgDl    = req.get("glucoseMgDl")    != null ? ((Number) req.get("glucoseMgDl")).doubleValue()    : null;
 
     Map<String, Object> prediction = predictorService.predictMultiple(
       stress, mood, energy, sleep, water, time, symptoms, triggers,
-      age, bmi, chronic, exerciseHrs, caffeineCups);
+      age, bmi, chronic, exerciseHrs, caffeineCups,
+      systolicBp, diastolicBp, bodyFatPercent, muscleMassKg, glucoseMgDl);
 
     return ResponseEntity.ok(prediction);
   }
@@ -42,9 +50,9 @@ public class SymptomPredictorController {
   @GetMapping("/status")
   public ResponseEntity<Map<String, Object>> getModelStatus() {
     return ResponseEntity.ok(Map.of(
-      "modelLoaded", predictorService.isModelLoaded(),
-      "symptomTypes", predictorService.getSymptomTypes(),
-      "triggerNames", predictorService.getTriggerNames(),
+      "modelLoaded",    predictorService.isModelLoaded(),
+      "symptomTypes",   predictorService.getSymptomTypes(),
+      "triggerNames",   predictorService.getTriggerNames(),
       "severityLabels", predictorService.getSeverityLabels()
     ));
   }
