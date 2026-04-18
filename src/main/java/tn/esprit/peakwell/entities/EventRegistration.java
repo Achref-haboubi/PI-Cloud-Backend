@@ -2,7 +2,6 @@ package tn.esprit.peakwell.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import tn.esprit.peakwell.enums.RegistrationStatus;
 
 import java.time.LocalDateTime;
@@ -25,23 +24,24 @@ public class EventRegistration {
     @Column(nullable = false)
     private RegistrationStatus status = RegistrationStatus.CONFIRMED;
 
-    @NotNull(message = "Student ID is required")
-    @Column(name = "student_id", nullable = false)
-    private Long studentId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "student_id", nullable = false)
+    @JsonIgnoreProperties({"user"})
+    private Student student;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnoreProperties({"registrations", "reviews"})
-      private SportEvent event;
+    private SportEvent event;
 
     public EventRegistration() {
     }
 
-    public EventRegistration(Long id, LocalDateTime registrationDate, RegistrationStatus status, Long studentId, SportEvent event) {
+    public EventRegistration(Long id, LocalDateTime registrationDate, RegistrationStatus status, Student student, SportEvent event) {
         this.id = id;
         this.registrationDate = registrationDate;
         this.status = status;
-        this.studentId = studentId;
+        this.student = student;
         this.event = event;
     }
 
@@ -69,12 +69,12 @@ public class EventRegistration {
         this.status = status;
     }
 
-    public @NotNull(message = "Student ID is required") Long getStudentId() {
-        return studentId;
+    public Student getStudent() {
+        return student;
     }
 
-    public void setStudentId(@NotNull(message = "Student ID is required") Long studentId) {
-        this.studentId = studentId;
+    public void setStudent(Student student) {
+        this.student = student;
     }
 
     public SportEvent getEvent() {

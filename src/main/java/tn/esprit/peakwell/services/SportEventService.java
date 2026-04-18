@@ -72,15 +72,19 @@ public class SportEventService {
         existingEvent.setCurrentParticipants(updatedEvent.getCurrentParticipants());
         existingEvent.setImageUrl(updatedEvent.getImageUrl());
 
-        if (updatedEvent.getStatus() == EventStatus.CANCELLED) {
-            existingEvent.setStatus(EventStatus.CANCELLED);
-        } else {
+        // appliquer le status demandé par le front
+        if (updatedEvent.getStatus() != null) {
+            existingEvent.setStatus(updatedEvent.getStatus());
+        }
+
+        // si ce n'est pas annulé ni terminé, recalcul automatique OPEN/FULL
+        if (existingEvent.getStatus() != EventStatus.CANCELLED &&
+                existingEvent.getStatus() != EventStatus.FINISHED) {
             existingEvent.updateStatusBasedOnCapacity();
         }
 
         return sportEventRepository.save(existingEvent);
     }
-
     public void deleteEvent(Long id) {
         SportEvent event = sportEventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));

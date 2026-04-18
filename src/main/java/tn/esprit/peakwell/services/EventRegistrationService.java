@@ -1,31 +1,56 @@
 package tn.esprit.peakwell.services;
 
 import org.springframework.stereotype.Service;
+import tn.esprit.peakwell.dto.AdminEventRegistrationDto;
 import tn.esprit.peakwell.entities.EventRegistration;
 import tn.esprit.peakwell.entities.SportEvent;
+import tn.esprit.peakwell.entities.Student;
+import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.enums.EventStatus;
 import tn.esprit.peakwell.enums.RegistrationStatus;
 import tn.esprit.peakwell.repositories.EventRegistrationRepository;
 import tn.esprit.peakwell.repositories.SportEventRepository;
+import tn.esprit.peakwell.repositories.StudentRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EventRegistrationService {
 
     private final EventRegistrationRepository registrationRepository;
     private final SportEventRepository sportEventRepository;
+    private final AuthService authService;
+    private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
 
     public EventRegistrationService(EventRegistrationRepository registrationRepository,
-                                    SportEventRepository sportEventRepository) {
+                                    SportEventRepository sportEventRepository,
+                                    AuthService authService,
+                                    UserRepository userRepository,
+                                    StudentRepository studentRepository) {
         this.registrationRepository = registrationRepository;
         this.sportEventRepository = sportEventRepository;
+        this.authService = authService;
+        this.userRepository = userRepository;
+        this.studentRepository = studentRepository;
     }
 
     private void syncExpiredEventsAndRegistrations() {
         sportEventRepository.updateExpiredEvents();
         registrationRepository.updateConfirmedRegistrationsToAttended();
+    }
+
+    private Student getCurrentStudent() {
+        String keycloakId = authService.getCurrentUserId();
+
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return studentRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("Student not found"));
     }
 
     public List<EventRegistration> getAllRegistrations() {
@@ -41,7 +66,7 @@ public class EventRegistrationService {
 
     public List<EventRegistration> getRegistrationsByStudentId(Long studentId) {
         syncExpiredEventsAndRegistrations();
-        return registrationRepository.findByStudentId(studentId);
+        return registrationRepository.findByStudent_Id(studentId);
     }
 
     public List<EventRegistration> getRegistrationsByEventId(Long eventId) {
@@ -49,8 +74,55 @@ public class EventRegistrationService {
         return registrationRepository.findByEventId(eventId);
     }
 
-    public EventRegistration createRegistration(Long eventId, EventRegistration registration) {
+    public List<AdminEventRegistrationDto> getAdminRegistrationsByEventId(Long eventId) {
         syncExpiredEventsAndRegistrations();
+
+        List<EventRegistration> registrations = registrationRepository.findByEventId(eventId);
+
+        return registrations.stream().map(reg -> {
+            Long studentId = null;
+            String firstName = "";
+            String lastName = "";
+            String fullName = "Student";
+            String email = "";
+            String imageUrl = null;
+
+            if (reg.getStudent() != null) {
+                studentId = reg.getStudent().getId();
+
+                if (reg.getStudent().getUser() != null) {
+                    User user = reg.getStudent().getUser();
+
+                    firstName = user.getFirstName() != null ? user.getFirstName() : "";
+                    lastName = user.getLastName() != null ? user.getLastName() : "";
+                    email = user.getEmail() != null ? user.getEmail() : "";
+                    imageUrl = user.getImgUrl();
+
+                    String tmpFullName = (firstName + " " + lastName).trim();
+                    if (!tmpFullName.isEmpty()) {
+                        fullName = tmpFullName;
+                    }
+                }
+            }
+
+            return new AdminEventRegistrationDto(
+                    reg.getId(),
+                    reg.getRegistrationDate(),
+                    reg.getStatus().name(),
+                    studentId,
+                    firstName,
+                    lastName,
+                    fullName,
+                    email,
+                    imageUrl
+            );
+        }).collect(Collectors.toList());
+    }
+
+    public EventRegistration createRegistration(Long eventId) {
+        syncExpiredEventsAndRegistrations();
+
+        Student student = getCurrentStudent();
 
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
@@ -65,11 +137,13 @@ public class EventRegistrationService {
             throw new IllegalArgumentException("This event is not available for registration.");
         }
 
-        registrationRepository.findByStudentIdAndEventId(registration.getStudentId(), eventId)
+        registrationRepository.findByStudent_IdAndEventId(student.getId(), eventId)
                 .ifPresent(existing -> {
                     throw new IllegalArgumentException("This student is already registered for this event.");
                 });
 
+        EventRegistration registration = new EventRegistration();
+        registration.setStudent(student);
         registration.setEvent(event);
         registration.setRegistrationDate(LocalDateTime.now());
 

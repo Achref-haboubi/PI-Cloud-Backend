@@ -31,9 +31,10 @@ public class EventReview {
     @Column(nullable = false)
     private LocalDateTime reviewDate = LocalDateTime.now();
 
-    @NotNull(message = "Student ID is required")
-    @Column(name = "student_id", nullable = false)
-    private Long studentId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "student_id", nullable = false)
+    @JsonIgnoreProperties({"user"})
+    private Student student;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "event_id", nullable = false)
@@ -43,12 +44,12 @@ public class EventReview {
     public EventReview() {
     }
 
-    public EventReview(Long id, Integer rating, String comment, LocalDateTime reviewDate, Long studentId, SportEvent event) {
+    public EventReview(Long id, Integer rating, String comment, LocalDateTime reviewDate, Student student, SportEvent event) {
         this.id = id;
         this.rating = rating;
         this.comment = comment;
         this.reviewDate = reviewDate;
-        this.studentId = studentId;
+        this.student = student;
         this.event = event;
     }
 
@@ -60,11 +61,11 @@ public class EventReview {
         this.id = id;
     }
 
-    public @NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be between 1 and 5") @Max(value = 5, message = "Rating must be between 1 and 5") Integer getRating() {
+    public Integer getRating() {
         return rating;
     }
 
-    public void setRating(@NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be between 1 and 5") @Max(value = 5, message = "Rating must be between 1 and 5") Integer rating) {
+    public void setRating(Integer rating) {
         this.rating = rating;
     }
 
@@ -84,12 +85,12 @@ public class EventReview {
         this.reviewDate = reviewDate;
     }
 
-    public @NotNull(message = "Student ID is required") Long getStudentId() {
-        return studentId;
+    public Student getStudent() {
+        return student;
     }
 
-    public void setStudentId(@NotNull(message = "Student ID is required") Long studentId) {
-        this.studentId = studentId;
+    public void setStudent(Student student) {
+        this.student = student;
     }
 
     public SportEvent getEvent() {

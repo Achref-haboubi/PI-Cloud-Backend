@@ -24,9 +24,10 @@ public class RecommendationService {
     }
 
     public List<SportEvent> recommendEvents(Long studentId) {
-        List<EventRegistration> registrations = registrationRepository.findByStudentId(studentId);
+        List<EventRegistration> registrations = registrationRepository.findByStudent_Id(studentId);
 
         Set<Long> joinedEventIds = registrations.stream()
+                .filter(r -> r.getEvent() != null && r.getEvent().getId() != null)
                 .map(r -> r.getEvent().getId())
                 .collect(Collectors.toSet());
 
@@ -45,7 +46,7 @@ public class RecommendationService {
         List<SportEvent> futureEvents = sportEventRepository.findAvailableFutureEvents(LocalDateTime.now());
 
         List<SportEvent> candidates = futureEvents.stream()
-                .filter(e -> !joinedEventIds.contains(e.getId()))
+                .filter(e -> e.getId() != null && !joinedEventIds.contains(e.getId()))
                 .collect(Collectors.toList());
 
         candidates.sort((e1, e2) -> Integer.compare(
@@ -53,7 +54,9 @@ public class RecommendationService {
                 scoreEvent(e1, favoriteCategory)
         ));
 
-        return candidates.stream().limit(3).collect(Collectors.toList());
+        return candidates.stream()
+                .limit(3)
+                .collect(Collectors.toList());
     }
 
     private int scoreEvent(SportEvent event, EventCategory favoriteCategory) {

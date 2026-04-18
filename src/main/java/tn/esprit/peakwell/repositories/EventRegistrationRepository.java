@@ -14,11 +14,11 @@ import java.util.Optional;
 @Repository
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, Long> {
 
-    List<EventRegistration> findByStudentId(Long studentId);
+    List<EventRegistration> findByStudent_Id(Long studentId);
 
     List<EventRegistration> findByEventId(Long eventId);
 
-    Optional<EventRegistration> findByStudentIdAndEventId(Long studentId, Long eventId);
+    Optional<EventRegistration> findByStudent_IdAndEventId(Long studentId, Long eventId);
 
     Optional<EventRegistration> findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
             Long eventId,
