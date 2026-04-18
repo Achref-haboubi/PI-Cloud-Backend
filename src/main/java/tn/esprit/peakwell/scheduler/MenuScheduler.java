@@ -36,7 +36,7 @@ public class MenuScheduler {
                 .plusWeeks(1);
 
         if (!isWeekGenerated(nextWeek)) {
-            System.out.println("📅 Génération semaine prochaine...");
+            System.out.println("Génération semaine prochaine...");
             menuService.generateWeeklyMenu(nextWeek);
         }
     }

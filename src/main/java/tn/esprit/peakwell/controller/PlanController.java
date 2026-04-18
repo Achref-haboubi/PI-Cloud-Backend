@@ -17,4 +17,5 @@ public class PlanController {
     public ResponseEntity<DailyPlanDTO> getTodayPlan() {
         return ResponseEntity.ok(planService.generateTodayPlan());
     }
+    
 }

@@ -26,21 +26,21 @@ public class MenuController {
         return menuService.createMenu(request);
     }
 
-    // 🔥 Générer semaine actuelle
+    // Générer semaine actuelle
     @PostMapping("/generate-current-week")
     public String generateCurrentWeek() {
         menuService.generateCurrentWeek();
-        return "✅ Semaine actuelle générée";
+        return "Semaine actuelle générée";
     }
 
-    // 🔥 Générer semaine suivante
+    // Générer semaine suivante
     @PostMapping("/generate-next-week")
     public String generateNextWeek() {
         menuService.generateNextWeek();
-        return "✅ Semaine suivante générée";
+        return "Semaine suivante générée";
     }
 
-    // 🔥 Générer semaine personnalisée (TRÈS PRO)
+    // Générer semaine personnalisée 
     @PostMapping("/generate")
     public List<DailyMenuDTO> generateWeekFromDate(@RequestParam String startDate) {
         LocalDate start = LocalDate.parse(startDate);
@@ -78,7 +78,7 @@ public class MenuController {
 
     @PutMapping("/reorder")
     public void reorderMenus(@RequestBody List<Long> orderedIds) {
-        System.out.println("🔥 IDs reçus : " + orderedIds);
+        System.out.println("IDs reçus : " + orderedIds);
         menuService.reorderMenus(orderedIds);
     }
 }

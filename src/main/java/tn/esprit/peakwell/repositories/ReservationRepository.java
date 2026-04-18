@@ -12,4 +12,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     int countByDailyMenuId(Long menuId);
 
     List<Reservation> findByUserId(String userId);
+
+    long countByPlanIsNotNull();
+
+    List<Reservation> findByPlanIsNotNull();
 }

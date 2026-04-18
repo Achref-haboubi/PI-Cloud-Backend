@@ -17,19 +17,18 @@ public class PlanService {
 
     @Autowired private UserRepository userRepository;
     @Autowired private StudentRepository studentRepository;
-    @Autowired private DailyMenuRepository dailyMenuRepository;
+    @Autowired private MealRepository mealRepository;
+    @Autowired private DailyPlanRepository dailyPlanRepository;
 
     private static final List<String> USER_ALLERGIES = List.of("LACTOSE");
 
-    // =====================================================
 
     public DailyPlanDTO generateTodayPlan() {
 
-        // 🔐 1. user connecté
         Jwt jwt = (Jwt) SecurityContextHolder
-        .getContext()
-        .getAuthentication()
-        .getPrincipal();
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
 
         String email = jwt.getClaim("email");
 
@@ -38,85 +37,70 @@ public class PlanService {
         }
 
         User user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
 
-        // 👤 2. student
         Student student = studentRepository.findByUser(user);
-        if (student == null) {
-            throw new RuntimeException("Student not found");
+
+        // CHECK SI PLAN EXISTE
+        Optional<DailyPlan> existingPlan =
+                dailyPlanRepository.findByUserIdAndDate(user.getId(), LocalDate.now());
+
+        if (existingPlan.isPresent()) {
+
+            DailyPlan plan = existingPlan.get();
+
+            return DailyPlanDTO.builder()
+                    .id(plan.getId())
+                    .breakfast(plan.getBreakfast())
+                    .lunch(plan.getLunch())
+                    .dinner(plan.getDinner())
+                    .totalCalories(plan.getTotalCalories())
+                    .targetCalories(plan.getTargetCalories())
+                    .status("EXISTING")
+                    .build();
         }
 
-        // 🍽️ 3. menu
-        Optional<DailyMenu> menuOpt = dailyMenuRepository.findByDate(LocalDate.now());
-
-        if (menuOpt.isEmpty()) {
-            throw new RuntimeException("No menu available");
-        }
-
-        DailyMenu menu = menuOpt.get();
-
-        // ⚠️ IMPORTANT : adapte selon TON entity
-        List<Meal> meals = List.of(
-            menu.getBreakfast(),
-            menu.getLunch(),
-            menu.getDinner()
-        );
-
-        // 🧠 4. validation
-        if (isMenuValid(meals, student)) {
-            return buildPlan(meals, "MENU_VALID");
-        }
-
-        // 🚫 5. filtrage allergie
-        List<Meal> safeMeals = meals.stream()
-                .filter(Objects::nonNull)
+        // SINON GENERATE
+        List<Meal> safeMeals = mealRepository.findAll().stream()
                 .filter(this::isSafe)
                 .toList();
 
-        if (safeMeals.isEmpty()) {
-            throw new RuntimeException("No safe meals available");
-        }
+        DailyPlan plan = generateSmartPlanEntity(user, student, safeMeals);
 
-        // 🎯 6. génération
-        return generateSmartPlan(student, safeMeals);
+        return DailyPlanDTO.builder()
+                .id(plan.getId())
+                .breakfast(plan.getBreakfast())
+                .lunch(plan.getLunch())
+                .dinner(plan.getDinner())
+                .totalCalories(plan.getTotalCalories())
+                .targetCalories(plan.getTargetCalories())
+                .status("GENERATED")
+                .build();
     }
 
-    // =====================================================
-    // VALIDATION MENU
-    // =====================================================
-
-    private boolean isMenuValid(List<Meal> meals, Student student) {
-
-        boolean allergiesOk = meals.stream()
-                .filter(Objects::nonNull)
-                .allMatch(this::isSafe);
-
-        double totalCalories = meals.stream()
-                .filter(Objects::nonNull)
-                .mapToDouble(Meal::getTotalCalories)
-                .sum();
+    private DailyPlan generateSmartPlanEntity(User user, Student student, List<Meal> meals) {
 
         double target = calculateCalories(student);
 
-        boolean goalOk;
+        Meal breakfast = selectBest(meals, "BREAKFAST", target * 0.25);
+        Meal lunch = selectBest(meals, "LUNCH", target * 0.40);
+        Meal dinner = selectBest(meals, "DINNER", target * 0.35);
 
-        // ⚠️ TON goal est probablement STRING
-        if (student.getGoal().equals("LOSE_WEIGHT")) {
-            goalOk = totalCalories <= target;
-        } else if (student.getGoal().equals("GAIN_WEIGHT")) {
-            goalOk = totalCalories >= target;
-        } else {
-            goalOk = Math.abs(totalCalories - target) < 200;
-        }
+        DailyPlan plan = new DailyPlan();
+        plan.setUserId(user.getId());
+        plan.setBreakfast(breakfast);
+        plan.setLunch(lunch);
+        plan.setDinner(dinner);
+        double totalCalories =
+        (breakfast != null ? breakfast.getTotalCalories() : 0) +
+        (lunch != null ? lunch.getTotalCalories() : 0) +
+        (dinner != null ? dinner.getTotalCalories() : 0);
+        plan.setTotalCalories(totalCalories);
+        plan.setTargetCalories(target);  
+        plan.setStatus("GENERATED");
+        plan.setDate(LocalDate.now());
 
-        return allergiesOk && goalOk;
+        return dailyPlanRepository.save(plan);
     }
-
-    // =====================================================
-    // ALLERGIES (AI)
-    // =====================================================
 
     private boolean isSafe(Meal meal) {
 
@@ -132,74 +116,48 @@ public class PlanService {
     }
 
 
-    // =====================================================
-    // CALORIES
-    // =====================================================
-
     private double calculateCalories(Student student) {
 
-        double calories = student.getWeight() * 30;
+        double weight = student.getWeight();
 
-        if (student.getGoal().equals("LOSE_WEIGHT")) {
-            calories -= 500;
-        } else if (student.getGoal().equals("GAIN_WEIGHT")) {
-            calories += 500;
+        double calories = weight * 22;
+
+        switch (student.getActivityLevel().toUpperCase()) {
+            case "LOW":
+                calories *= 1.2;
+                break;
+            case "MEDIUM":
+                calories *= 1.55;
+                break;
+            case "HIGH":
+                calories *= 1.75;
+                break;
+            default:
+                calories *= 1.3;
+        }
+
+        switch (student.getGoal().toUpperCase()) {
+            case "LOSE_WEIGHT":
+                calories -= 500;
+                break;
+            case "GAIN_WEIGHT":
+                calories += 500;
+                break;
         }
 
         return calories;
     }
 
-    // =====================================================
-    // SMART PLAN
-    // =====================================================
-
-    private DailyPlanDTO generateSmartPlan(Student student, List<Meal> meals) {
-
-        double target = calculateCalories(student);
-
-        Meal breakfast = selectBest(meals, "BREAKFAST", target * 0.25);
-        Meal lunch = selectBest(meals, "LUNCH", target * 0.40);
-        Meal dinner = selectBest(meals, "DINNER", target * 0.35);
-
-        return DailyPlanDTO.builder()
-                .breakfast(breakfast)
-                .lunch(lunch)
-                .dinner(dinner)
-                .totalCalories(target)
-                .status("GENERATED")
-                .build();
-    }
-
-    // =====================================================
-    // SELECTION
-    // =====================================================
 
     private Meal selectBest(List<Meal> meals, String category, double targetCalories) {
 
         return meals.stream()
-                .filter(m -> m != null && m.getCategory().equals(category))
+                .filter(m -> m != null && m.getCategory().equalsIgnoreCase(category))
                 .min(Comparator.comparing(m ->
                         Math.abs(m.getTotalCalories() - targetCalories)))
                 .orElse(null);
     }
 
-    // =====================================================
-    // BUILD PLAN
-    // =====================================================
 
-    private DailyPlanDTO buildPlan(List<Meal> meals, String status) {
-
-        double totalCalories = meals.stream()
-                .filter(Objects::nonNull)
-                .mapToDouble(Meal::getTotalCalories)
-                .sum();
-
-        return DailyPlanDTO.builder()
-                .breakfast(meals.get(0))
-                .lunch(meals.get(1))
-                .dinner(meals.get(2))
-                .totalCalories(totalCalories)
-                .status(status)
-                .build();
-    }
+    
 }

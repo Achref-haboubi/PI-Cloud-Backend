@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/menu/**").permitAll()
                         .requestMatchers("/favorites/**").permitAll()
                         .requestMatchers("/reservations/count/**").permitAll()
+                        .requestMatchers("/reservations/plan/**").permitAll()
                         .requestMatchers("/plan/**").permitAll()
                         .requestMatchers("/api/plan/today/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")

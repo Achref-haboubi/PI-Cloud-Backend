@@ -19,4 +19,10 @@ public class Reservation {
 
     @ManyToOne
     private DailyMenu dailyMenu;
+
+    @ManyToOne
+    DailyPlan plan;
+
+    String type;
+
 }
