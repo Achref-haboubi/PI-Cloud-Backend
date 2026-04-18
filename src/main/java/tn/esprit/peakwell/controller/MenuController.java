@@ -2,6 +2,7 @@ package tn.esprit.peakwell.controller;
 
 import tn.esprit.peakwell.entities.DailyMenu;
 import tn.esprit.peakwell.dto.DailyMenuDTO;
+import tn.esprit.peakwell.dto.DailyMenuRequest;
 import tn.esprit.peakwell.services.MenuService;
 
 import java.time.LocalDate;
@@ -20,39 +21,59 @@ public class MenuController {
         this.menuService = menuService;
     }
 
-    // ✅ CREATE MANUAL
+    // CREATE MANUAL
     @PostMapping
-    public DailyMenu createMenu(@RequestBody DailyMenu menu) {
-        return menuService.createMenu(menu);
+    public DailyMenuDTO createMenu(@RequestBody DailyMenuRequest request) {
+        return menuService.createMenu(request);
     }
 
-    // 🔥 NEW → AUTO GENERATE MENU
+    // 🔥 Générer semaine actuelle
+    @PostMapping("/generate-current-week")
+    public String generateCurrentWeek() {
+        menuService.generateCurrentWeek();
+        return "✅ Semaine actuelle générée";
+    }
+
+    // 🔥 Générer semaine suivante
+    @PostMapping("/generate-next-week")
+    public String generateNextWeek() {
+        menuService.generateNextWeek();
+        return "✅ Semaine suivante générée";
+    }
+
+    // 🔥 Générer semaine personnalisée (TRÈS PRO)
     @PostMapping("/generate")
-    public DailyMenu generateMenu() {
-        return menuService.generateMenu();
+    public List<DailyMenuDTO> generateWeekFromDate(@RequestParam String startDate) {
+        LocalDate start = LocalDate.parse(startDate);
+        return menuService.generateWeeklyMenu(start);
     }
 
-    // ✅ GET TODAY → DTO
+    // GET TODAY
     @GetMapping("/today")
     public DailyMenuDTO getTodayMenu() {
         return menuService.getTodayMenu();
     }
 
-    // ✅ GET ALL → DTO
+    // GET ALL
     @GetMapping
     public List<DailyMenuDTO> getAllMenus() {
         return menuService.getAllMenus();
     }
 
-    // ✅ GET WEEK → DTO
+    // GET WEEK
     @GetMapping("/week")
     public List<DailyMenuDTO> getWeeklyMenus() {
         return menuService.getWeeklyMenus();
     }
 
-    // ✅ GET BY DATE → DTO
+    // GET BY DATE
     @GetMapping("/{date}")
     public DailyMenuDTO getMenuByDate(@PathVariable String date) {
         return menuService.getMenuByDate(LocalDate.parse(date));
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteMenu(@PathVariable Long id) {
+        menuService.deleteMenu(id);
     }
 }

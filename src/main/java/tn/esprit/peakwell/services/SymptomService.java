@@ -1,7 +1,12 @@
 package tn.esprit.peakwell.services;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.SymptomCorrelationResponse;
-import tn.esprit.peakwell.dto.SymptomCorrelationResponse.*;
+import tn.esprit.peakwell.dto.SymptomCorrelationResponse.Correlation;
+import tn.esprit.peakwell.dto.SymptomCorrelationResponse.OverallSummary;
+import tn.esprit.peakwell.dto.SymptomCorrelationResponse.PatternInsight;
+import tn.esprit.peakwell.dto.SymptomCorrelationResponse.SymptomFrequency;
 import tn.esprit.peakwell.dto.SymptomEntryRequest;
 import tn.esprit.peakwell.dto.SymptomEntryResponse;
 import tn.esprit.peakwell.entities.BiometricEntry;
@@ -10,8 +15,6 @@ import tn.esprit.peakwell.entities.SymptomEntry;
 import tn.esprit.peakwell.repositories.BiometricEntryRepository;
 import tn.esprit.peakwell.repositories.MedicalProfileRepository;
 import tn.esprit.peakwell.repositories.SymptomEntryRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;

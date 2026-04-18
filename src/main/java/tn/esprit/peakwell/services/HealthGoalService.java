@@ -1,18 +1,17 @@
 package tn.esprit.peakwell.services;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.peakwell.dto.HealthGoalRequest;
 import tn.esprit.peakwell.dto.HealthGoalResponse;
 import tn.esprit.peakwell.dto.HealthGoalResponse.MilestoneResponse;
-import tn.esprit.peakwell.entities.BiometricEntry;
 import tn.esprit.peakwell.entities.GoalMilestone;
 import tn.esprit.peakwell.entities.HealthGoal;
 import tn.esprit.peakwell.entities.MedicalProfile;
 import tn.esprit.peakwell.repositories.BiometricEntryRepository;
 import tn.esprit.peakwell.repositories.HealthGoalRepository;
 import tn.esprit.peakwell.repositories.MedicalProfileRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

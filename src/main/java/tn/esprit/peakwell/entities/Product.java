@@ -33,16 +33,21 @@ public class Product {
     @PositiveOrZero(message = "Fats must be >= 0")
     private double fats;
 
-    @NotBlank(message = "Category is required")
-    private String category;
+    @NotNull(message = "Category is required")
+    @Enumerated(EnumType.STRING)
+    private Category_Product category_Product;
 
-    private String allergens; // optionnel
 
     @PositiveOrZero(message = "Stock must be >= 0")
     private double stock;
 
-    @NotBlank(message = "Unit is required")
-    private String unit;
+    @Enumerated(EnumType.STRING)
+    private UnitType unit;
 
-    private String image; // optionnel
+    private String image; 
+
+    private double minStock; 
+
+    @Enumerated(EnumType.STRING)
+    private StockStatus stockStatus;
 }

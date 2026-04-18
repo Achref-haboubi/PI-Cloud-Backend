@@ -1,6 +1,5 @@
 package tn.esprit.peakwell.controller;
 
-import org.hibernate.annotations.Cascade;
 import tn.esprit.peakwell.dto.BiometricRequest;
 import tn.esprit.peakwell.dto.BiometricResponse;
 import tn.esprit.peakwell.dto.HealthAlertDto;
