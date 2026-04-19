@@ -20,7 +20,13 @@ public class PlanService {
     @Autowired private MealRepository mealRepository;
     @Autowired private DailyPlanRepository dailyPlanRepository;
 
-    private static final List<String> USER_ALLERGIES = List.of("LACTOSE");
+    private static final List<String> USER_ALLERGIES = List.of("GLUTEN");
+
+    private List<String> getCurrentAllergies(Student student) {
+
+        return USER_ALLERGIES;
+        // return student.getAllergies();
+    }
 
 
     public DailyPlanDTO generateTodayPlan() {
@@ -48,20 +54,35 @@ public class PlanService {
 
             DailyPlan plan = existingPlan.get();
 
-            return DailyPlanDTO.builder()
-                    .id(plan.getId())
-                    .breakfast(plan.getBreakfast())
-                    .lunch(plan.getLunch())
-                    .dinner(plan.getDinner())
-                    .totalCalories(plan.getTotalCalories())
-                    .targetCalories(plan.getTargetCalories())
-                    .status("EXISTING")
-                    .build();
+            String currentAllergies = buildAllergiesHash(student);
+
+            boolean sameProfile =
+                Objects.equals(plan.getGoal(), student.getGoal()) &&
+                Objects.equals(plan.getActivityLevel(), student.getActivityLevel()) &&
+                plan.getWeight() == student.getWeight() &&
+                plan.getHeight() == student.getHeight() &&
+                Objects.equals(plan.getAllergiesHash(), currentAllergies);
+
+            if (sameProfile) {
+                // réutiliser plan
+                return DailyPlanDTO.builder()
+                        .id(plan.getId())
+                        .breakfast(plan.getBreakfast())
+                        .lunch(plan.getLunch())
+                        .dinner(plan.getDinner())
+                        .totalCalories(plan.getTotalCalories())
+                        .targetCalories(plan.getTargetCalories())
+                        .status("EXISTING")
+                        .build();
+            }
+
+            // profil changé → supprimer ancien plan
+            dailyPlanRepository.delete(plan);
         }
 
         // SINON GENERATE
         List<Meal> safeMeals = mealRepository.findAll().stream()
-                .filter(this::isSafe)
+                .filter(meal -> isSafe(meal, student))
                 .toList();
 
         DailyPlan plan = generateSmartPlanEntity(user, student, safeMeals);
@@ -98,11 +119,16 @@ public class PlanService {
         plan.setTargetCalories(target);  
         plan.setStatus("GENERATED");
         plan.setDate(LocalDate.now());
+        plan.setGoal(student.getGoal());
+        plan.setActivityLevel(student.getActivityLevel());
+        plan.setWeight(student.getWeight());
+        plan.setHeight(student.getHeight());
+        plan.setAllergiesHash(buildAllergiesHash(student));
 
         return dailyPlanRepository.save(plan);
     }
 
-    private boolean isSafe(Meal meal) {
+    private boolean isSafe(Meal meal, Student student) {
 
         List<String> allergens = meal.getPredictedAllergens();
 
@@ -110,9 +136,14 @@ public class PlanService {
             return true;
         }
 
+        List<String> userAllergies = getCurrentAllergies(student)
+                .stream()
+                .map(String::toUpperCase)
+                .toList();
+
         return allergens.stream()
                 .map(String::toUpperCase)
-                .noneMatch(USER_ALLERGIES::contains);
+                .noneMatch(userAllergies::contains);
     }
 
 
@@ -158,6 +189,20 @@ public class PlanService {
                 .orElse(null);
     }
 
+    private String buildAllergiesHash(Student student) {
+
+        List<String> allergies = getCurrentAllergies(student);
+
+        if (allergies == null || allergies.isEmpty()) {
+            return "";
+        }
+
+        return allergies.stream()
+                .sorted()
+                .map(String::toUpperCase)
+                .reduce((a, b) -> a + "," + b)
+                .orElse("");
+    }
 
     
 }

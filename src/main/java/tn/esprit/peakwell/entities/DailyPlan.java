@@ -34,4 +34,14 @@ public class DailyPlan {
     private String status;
 
     private LocalDate date;
+
+    private String activityLevel;
+    
+    private double weight;
+    
+    private double height;
+    
+    private String allergiesHash;
+
+    private String goal;
 }
