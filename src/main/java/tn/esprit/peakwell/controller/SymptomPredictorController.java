@@ -4,6 +4,7 @@ import tn.esprit.peakwell.services.SymptomPredictorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,18 @@ public class SymptomPredictorController {
       systolicBp, diastolicBp, bodyFatPercent, muscleMassKg, glucoseMgDl);
 
     return ResponseEntity.ok(prediction);
+  }
+
+  @PostMapping("/diseases")
+  @SuppressWarnings("unchecked")
+  public ResponseEntity<Map<String, Object>> predictDiseases(@RequestBody Map<String, Object> req) {
+    try {
+      RestTemplate rt = new RestTemplate();
+      Map<String, Object> response = rt.postForObject("http://localhost:8000/predict/diseases", req, Map.class);
+      return ResponseEntity.ok(response != null ? response : Map.of("error", "Empty response from AI service"));
+    } catch (Exception e) {
+      return ResponseEntity.status(502).body(Map.of("error", "Disease AI service unavailable: " + e.getMessage()));
+    }
   }
 
   @GetMapping("/status")
