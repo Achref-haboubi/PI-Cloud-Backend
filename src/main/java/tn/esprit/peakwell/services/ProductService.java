@@ -1,6 +1,8 @@
 package tn.esprit.peakwell.services;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import tn.esprit.peakwell.dto.ProductDTO;
 import tn.esprit.peakwell.dto.ProductRequest;
 import tn.esprit.peakwell.entities.Category_Product;
@@ -11,7 +13,7 @@ import tn.esprit.peakwell.repositories.ProductRepository;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -140,7 +142,10 @@ public class ProductService {
     public void deleteProduct(Long id) {
 
         if (ingredientRepository.existsByProductId(id)) {
-            throw new RuntimeException("PRODUCT_IN_USE");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Ce produit est utilisé dans un repas"
+            );
         }
 
         productRepository.deleteById(id);
