@@ -160,13 +160,58 @@ public class EventRegistrationService {
         return registrationRepository.save(registration);
     }
 
-    public EventRegistration updateRegistrationStatus(Long id, RegistrationStatus status) {
+    public EventRegistration updateRegistrationStatus(Long id, RegistrationStatus newStatus) {
         syncExpiredEventsAndRegistrations();
 
         EventRegistration registration = getRegistrationById(id);
-        registration.setStatus(status);
+        SportEvent event = registration.getEvent();
+        RegistrationStatus oldStatus = registration.getStatus();
 
-        return registrationRepository.save(registration);
+        if (event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("Cannot update registration of a finished event.");
+        }
+
+        if (oldStatus == newStatus) {
+            return registration;
+        }
+
+        boolean oldCounted = (oldStatus == RegistrationStatus.CONFIRMED || oldStatus == RegistrationStatus.ATTENDED);
+        boolean newCounted = (newStatus == RegistrationStatus.CONFIRMED || newStatus == RegistrationStatus.ATTENDED);
+
+        // cas 1 : l'ancien statut comptait, le nouveau ne compte pas
+        if (oldCounted && !newCounted) {
+            if (event.getCurrentParticipants() > 0) {
+                event.setCurrentParticipants(event.getCurrentParticipants() - 1);
+            }
+        }
+
+        // cas 2 : l'ancien statut ne comptait pas, le nouveau compte
+        if (!oldCounted && newCounted) {
+            if (event.getCurrentParticipants() >= event.getMaxParticipants()) {
+                throw new IllegalArgumentException("Cannot confirm registration: event is already full.");
+            }
+            event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+        }
+
+        registration.setStatus(newStatus);
+        registrationRepository.save(registration);
+
+        // si une place s'est libérée, promotion auto du premier WAITING
+        if (oldCounted && !newCounted) {
+            registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
+                    event.getId(),
+                    RegistrationStatus.WAITING
+            ).ifPresent(waitingRegistration -> {
+                waitingRegistration.setStatus(RegistrationStatus.CONFIRMED);
+                registrationRepository.save(waitingRegistration);
+                event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+            });
+        }
+
+        event.updateStatusBasedOnCapacity();
+        sportEventRepository.save(event);
+
+        return registration;
     }
 
     public void deleteRegistration(Long id) {
@@ -174,8 +219,9 @@ public class EventRegistrationService {
 
         EventRegistration registration = getRegistrationById(id);
         SportEvent event = registration.getEvent();
+        RegistrationStatus status = registration.getStatus();
 
-        if (registration.getStatus() == RegistrationStatus.ATTENDED) {
+        if (status == RegistrationStatus.ATTENDED) {
             throw new IllegalArgumentException("Attended registrations cannot be cancelled.");
         }
 
@@ -183,16 +229,16 @@ public class EventRegistrationService {
             throw new IllegalArgumentException("Finished event registrations cannot be cancelled.");
         }
 
-        boolean confirmedWasRemoved = false;
+        boolean counted = (status == RegistrationStatus.CONFIRMED);
 
-        if (registration.getStatus() == RegistrationStatus.CONFIRMED && event.getCurrentParticipants() > 0) {
+        if (counted && event.getCurrentParticipants() > 0) {
             event.setCurrentParticipants(event.getCurrentParticipants() - 1);
-            confirmedWasRemoved = true;
         }
 
         registrationRepository.delete(registration);
 
-        if (confirmedWasRemoved) {
+        // si une vraie place s'est libérée, promouvoir le premier waiting
+        if (counted) {
             registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
                     event.getId(),
                     RegistrationStatus.WAITING

@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.services;
 
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.entities.SportEvent;
 import tn.esprit.peakwell.enums.EventStatus;
@@ -12,9 +13,12 @@ import java.util.List;
 public class SportEventService {
 
     private final SportEventRepository sportEventRepository;
+    private final AiTrainingSyncService aiTrainingSyncService;
 
-    public SportEventService(SportEventRepository sportEventRepository) {
+    public SportEventService(SportEventRepository sportEventRepository,
+                             AiTrainingSyncService aiTrainingSyncService) {
         this.sportEventRepository = sportEventRepository;
+        this.aiTrainingSyncService = aiTrainingSyncService;
     }
 
     public List<SportEvent> getAllEvents() {
@@ -101,6 +105,47 @@ public class SportEventService {
             event.setStatus(EventStatus.FINISHED);
         } else {
             event.updateStatusBasedOnCapacity();
+        }
+    }
+
+
+
+
+    //LECODE DE PREDICTION
+
+    @Transactional
+    public void exportFinishedEventsToAiDataset() {
+        sportEventRepository.updateExpiredEvents();
+
+        List<SportEvent> finishedEvents =
+                sportEventRepository.findByStatusAndExportedToAiDatasetFalse(EventStatus.FINISHED);
+
+        System.out.println("Finished events to export: " + finishedEvents.size());
+
+        for (SportEvent event : finishedEvents) {
+            try {
+                System.out.println("Before export -> Event ID: " + event.getId()
+                        + ", exported: " + event.getExportedToAiDataset());
+
+                aiTrainingSyncService.sendFinishedEventToFlask(event);
+
+                sportEventRepository.markAsExported(event.getId());
+
+                System.out.println("After export -> Event ID: " + event.getId()
+                        + " marked as exported in database.");
+            } catch (Exception e) {
+                System.out.println("Failed to export event " + event.getId()
+                        + " to AI dataset: " + e.getMessage());
+            }
+        }
+    }
+
+    public void retrainAiModel() {
+        try {
+            aiTrainingSyncService.callRetrain();
+            System.out.println("AI model retrained successfully.");
+        } catch (Exception e) {
+            System.out.println("Failed to retrain AI model: " + e.getMessage());
         }
     }
 }

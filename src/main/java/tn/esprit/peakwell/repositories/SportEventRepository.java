@@ -29,5 +29,10 @@ public interface SportEventRepository extends JpaRepository<SportEvent, Long> {
 """)
     List<SportEvent> findAvailableFutureEvents(@Param("now") LocalDateTime now);
 
+    List<SportEvent> findByStatusAndExportedToAiDatasetFalse(EventStatus status);
 
+
+    @Modifying
+    @Query("update SportEvent e set e.exportedToAiDataset = true where e.id = :id")
+    void markAsExported(Long id);
 }

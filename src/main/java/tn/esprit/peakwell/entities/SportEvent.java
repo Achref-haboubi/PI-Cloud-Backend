@@ -65,6 +65,9 @@ public class SportEvent {
     @Column(nullable = false)
     private EventStatus status = EventStatus.OPEN;
 
+    @Column(nullable = false)
+    private Boolean exportedToAiDataset = false;
+
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("event")
     private List<EventRegistration> registrations = new ArrayList<>();
@@ -209,5 +212,12 @@ public class SportEvent {
 
     public void setReviews(List<EventReview> reviews) {
         this.reviews = reviews;
+    }
+    public Boolean getExportedToAiDataset() {
+        return exportedToAiDataset;
+    }
+
+    public void setExportedToAiDataset(Boolean exportedToAiDataset) {
+        this.exportedToAiDataset = exportedToAiDataset;
     }
 }
