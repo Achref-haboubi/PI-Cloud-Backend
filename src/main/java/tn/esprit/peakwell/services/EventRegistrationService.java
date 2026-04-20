@@ -25,17 +25,20 @@ public class EventRegistrationService {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
+    private final EmailService emailService;
 
     public EventRegistrationService(EventRegistrationRepository registrationRepository,
                                     SportEventRepository sportEventRepository,
                                     AuthService authService,
                                     UserRepository userRepository,
-                                    StudentRepository studentRepository) {
+                                    StudentRepository studentRepository,
+                                    EmailService emailService) {
         this.registrationRepository = registrationRepository;
         this.sportEventRepository = sportEventRepository;
         this.authService = authService;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
+        this.emailService = emailService;
     }
 
     private void syncExpiredEventsAndRegistrations() {
@@ -51,6 +54,27 @@ public class EventRegistrationService {
 
         return studentRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("Student not found"));
+    }
+
+    private void sendPromotionEmail(EventRegistration registration) {
+        try {
+            if (registration.getStudent() == null || registration.getStudent().getUser() == null) {
+                return;
+            }
+
+            User user = registration.getStudent().getUser();
+            SportEvent event = registration.getEvent();
+
+            String to = user.getEmail();
+            String studentName = user.getFirstName() != null ? user.getFirstName() : "Student";
+            String eventTitle = event.getTitle();
+            String date = event.getEventDate() != null ? event.getEventDate().toString() : "scheduled date";
+
+            emailService.sendEventPromotionEmail(to, studentName, eventTitle, date);
+
+        } catch (Exception e) {
+            System.out.println("Failed to send promotion email: " + e.getMessage());
+        }
     }
 
     public List<EventRegistration> getAllRegistrations() {
@@ -178,14 +202,12 @@ public class EventRegistrationService {
         boolean oldCounted = (oldStatus == RegistrationStatus.CONFIRMED || oldStatus == RegistrationStatus.ATTENDED);
         boolean newCounted = (newStatus == RegistrationStatus.CONFIRMED || newStatus == RegistrationStatus.ATTENDED);
 
-        // cas 1 : l'ancien statut comptait, le nouveau ne compte pas
         if (oldCounted && !newCounted) {
             if (event.getCurrentParticipants() > 0) {
                 event.setCurrentParticipants(event.getCurrentParticipants() - 1);
             }
         }
 
-        // cas 2 : l'ancien statut ne comptait pas, le nouveau compte
         if (!oldCounted && newCounted) {
             if (event.getCurrentParticipants() >= event.getMaxParticipants()) {
                 throw new IllegalArgumentException("Cannot confirm registration: event is already full.");
@@ -196,7 +218,6 @@ public class EventRegistrationService {
         registration.setStatus(newStatus);
         registrationRepository.save(registration);
 
-        // si une place s'est libérée, promotion auto du premier WAITING
         if (oldCounted && !newCounted) {
             registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
                     event.getId(),
@@ -205,6 +226,8 @@ public class EventRegistrationService {
                 waitingRegistration.setStatus(RegistrationStatus.CONFIRMED);
                 registrationRepository.save(waitingRegistration);
                 event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+
+                sendPromotionEmail(waitingRegistration);
             });
         }
 
@@ -237,7 +260,6 @@ public class EventRegistrationService {
 
         registrationRepository.delete(registration);
 
-        // si une vraie place s'est libérée, promouvoir le premier waiting
         if (counted) {
             registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
                     event.getId(),
@@ -246,6 +268,8 @@ public class EventRegistrationService {
                 waitingRegistration.setStatus(RegistrationStatus.CONFIRMED);
                 registrationRepository.save(waitingRegistration);
                 event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+
+                sendPromotionEmail(waitingRegistration);
             });
         }
 

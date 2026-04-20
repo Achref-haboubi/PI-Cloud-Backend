@@ -35,4 +35,5 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
           AND r.event.status = tn.esprit.peakwell.enums.EventStatus.FINISHED
     """)
     void updateConfirmedRegistrationsToAttended();
+
 }
