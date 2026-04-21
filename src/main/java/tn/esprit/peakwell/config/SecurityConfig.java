@@ -32,6 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers("/ai/**").permitAll()
                         .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/restaurant/**").permitAll()
                         .requestMatchers("/products/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()

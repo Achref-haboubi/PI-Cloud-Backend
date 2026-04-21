@@ -1,10 +1,10 @@
 package tn.esprit.peakwell.controller;
 
-
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.peakwell.dto.AdminEventReviewDto;
 import tn.esprit.peakwell.entities.EventReview;
 import tn.esprit.peakwell.services.EventReviewService;
 
@@ -41,6 +41,11 @@ public class EventReviewController {
         return ResponseEntity.ok(reviewService.getReviewsByEventId(eventId));
     }
 
+    @GetMapping("/event/{eventId}/admin")
+    public ResponseEntity<List<AdminEventReviewDto>> getAdminReviewsByEventId(@PathVariable Long eventId) {
+        return ResponseEntity.ok(reviewService.getAdminReviewsByEventId(eventId));
+    }
+
     @PostMapping("/event/{eventId}")
     public ResponseEntity<EventReview> createReview(@PathVariable Long eventId,
                                                     @Valid @RequestBody EventReview review) {
@@ -48,7 +53,7 @@ public class EventReviewController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EventReview> updateReview(@PathVariable Long id,@Valid @RequestBody EventReview review) {
+    public ResponseEntity<EventReview> updateReview(@PathVariable Long id, @Valid @RequestBody EventReview review) {
         return ResponseEntity.ok(reviewService.updateReview(id, review));
     }
 

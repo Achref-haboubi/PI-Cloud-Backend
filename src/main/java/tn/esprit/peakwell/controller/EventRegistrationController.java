@@ -1,11 +1,9 @@
 package tn.esprit.peakwell.controller;
 
-
-
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.peakwell.dto.AdminEventRegistrationDto;
 import tn.esprit.peakwell.entities.EventRegistration;
 import tn.esprit.peakwell.enums.RegistrationStatus;
 import tn.esprit.peakwell.services.EventRegistrationService;
@@ -43,10 +41,14 @@ public class EventRegistrationController {
         return ResponseEntity.ok(registrationService.getRegistrationsByEventId(eventId));
     }
 
+    @GetMapping("/event/{eventId}/admin")
+    public ResponseEntity<List<AdminEventRegistrationDto>> getAdminRegistrationsByEventId(@PathVariable Long eventId) {
+        return ResponseEntity.ok(registrationService.getAdminRegistrationsByEventId(eventId));
+    }
+
     @PostMapping("/event/{eventId}")
-    public ResponseEntity<EventRegistration> createRegistration(@PathVariable Long eventId,
-                                                                @Valid @RequestBody EventRegistration registration) {
-        return new ResponseEntity<>(registrationService.createRegistration(eventId, registration), HttpStatus.CREATED);
+    public ResponseEntity<EventRegistration> createRegistration(@PathVariable Long eventId) {
+        return new ResponseEntity<>(registrationService.createRegistration(eventId), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}/status")

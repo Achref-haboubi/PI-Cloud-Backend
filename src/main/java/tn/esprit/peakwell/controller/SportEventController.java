@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.peakwell.entities.SportEvent;
+import tn.esprit.peakwell.enums.EventCategory;
+import tn.esprit.peakwell.services.EventDescriptionAPIService;
 import tn.esprit.peakwell.services.SportEventService;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -14,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/events")
@@ -21,9 +24,14 @@ import java.util.List;
 public class SportEventController {
 
     private final SportEventService sportEventService;
+    private final EventDescriptionAPIService eventDescriptionAPIService;
 
-    public SportEventController(SportEventService sportEventService) {
+    public SportEventController(
+            SportEventService sportEventService,
+            EventDescriptionAPIService eventDescriptionAPIService
+    ) {
         this.sportEventService = sportEventService;
+        this.eventDescriptionAPIService = eventDescriptionAPIService;
     }
 
     @GetMapping
@@ -76,6 +84,33 @@ public class SportEventController {
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur lors de l'upload de l'image");
+        }
+    }
+
+    @PostMapping("/generate-description")
+    public ResponseEntity<String> generateEventDescription(@RequestBody Map<String, String> request) {
+        String title = request.get("title");
+        String categoryRaw = request.get("category");
+        String eventDate = request.get("date");
+
+        if (title == null || title.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Title is required");
+        }
+
+        try {
+            EventCategory category = EventCategory.valueOf(categoryRaw.toUpperCase());
+
+            String description = eventDescriptionAPIService.generateEventDescription(
+                    title,
+                    category,
+                    eventDate
+            );
+
+            return ResponseEntity.ok(description);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error generating description");
         }
     }
 }

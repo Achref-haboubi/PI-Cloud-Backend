@@ -525,4 +525,46 @@ public class EmailService implements IEmailService {
                 badge, name, heading, body
         );
     }
+
+    //adem code
+    public void sendEventPromotionEmail(String to, String studentName, String eventTitle, String date) {
+
+        String subject = "🎉 You're in! Your event registration is confirmed — PeakWell";
+
+        String body = template(
+                studentName,
+                "Your registration is confirmed!",
+                "Good news! A spot has opened up for the event <strong>" + eventTitle + "</strong>.<br><br>" +
+                        "Your registration for <strong>" + date + "</strong> has been <strong>automatically confirmed</strong>.<br><br>" +
+                        "We look forward to seeing you there!",
+                "#7a9e7e",
+                "✅ Confirmed from Waitlist"
+        );
+
+        send(to, subject, body);
+    }
+
+
+    // cancel
+
+    public void sendEventCancelledEmail(String to, String studentName, String eventTitle, String date, String location) {
+
+        String subject = "❌ Event Cancelled — PeakWell";
+
+        String body = template(
+                studentName,
+                "This event has been cancelled",
+                "We’re sorry to inform you that the event <strong>" + eventTitle + "</strong> scheduled for <strong>" + date + "</strong>" +
+                        (location != null && !location.isBlank() ? " at <strong>" + location + "</strong>" : "") +
+                        " has been <strong>cancelled</strong>.<br><br>" +
+                        "Thank you for your understanding.",
+                "#c96a3f",
+                "❌ Event Cancelled"
+        );
+
+        send(to, subject, body);
+    }
 }
+
+    
+
