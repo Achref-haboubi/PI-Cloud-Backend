@@ -20,7 +20,7 @@ public class PlanService {
     @Autowired private MealRepository mealRepository;
     @Autowired private DailyPlanRepository dailyPlanRepository;
 
-    private static final List<String> USER_ALLERGIES = List.of("GLUTEN");
+    private static final List<String> USER_ALLERGIES = List.of("EGGS");
 
     private List<String> getCurrentAllergies(Student student) {
 

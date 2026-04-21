@@ -79,7 +79,9 @@ public class MealService {
 
         String text = buildMealText(meal);
         var prediction = aiAlergeneService.predictAllergens(text);
-        meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        if (prediction != null && prediction.getPredictedAllergens() != null) {
+            meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        }
         meal.setUserId(getCurrentUserId());
         Meal saved = mealRepository.save(meal);
 
@@ -130,6 +132,13 @@ public class MealService {
         }
 
         calculateNutrition(meal);
+
+        String text = buildMealText(meal);
+        var prediction = aiAlergeneService.predictAllergens(text);
+
+        if (prediction != null && prediction.getPredictedAllergens() != null) {
+            meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        }
 
         return mapMealToDTO(mealRepository.save(meal));
     }
