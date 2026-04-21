@@ -9,10 +9,14 @@ import tn.esprit.peakwell.entities.Ingredient;
 import tn.esprit.peakwell.entities.Meal;
 import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.exception.StockException;
+import tn.esprit.peakwell.repositories.DailyPlanRepository;
 import tn.esprit.peakwell.repositories.MealRepository;
 import tn.esprit.peakwell.repositories.ProductRepository;
 import tn.esprit.peakwell.dto.MealRequest;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import tn.esprit.peakwell.repositories.DailyMenuRepository;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -24,13 +28,19 @@ public class MealService {
     private final MealRepository mealRepository;
     private final ProductRepository productRepository;
     private final AIAlergeneService aiAlergeneService;
+    private final DailyPlanRepository dailyPlanRepository;
+    private final DailyMenuRepository dailyMenuRepository;
 
     public MealService(MealRepository mealRepository,
                        ProductRepository productRepository,
-                       AIAlergeneService aiAlergeneService) {
+                       AIAlergeneService aiAlergeneService,
+                       DailyPlanRepository dailyPlanRepository,
+                       DailyMenuRepository dailyMenuRepository) {
         this.mealRepository = mealRepository;
         this.productRepository = productRepository;
         this.aiAlergeneService = aiAlergeneService;
+        this.dailyPlanRepository = dailyPlanRepository;
+        this.dailyMenuRepository = dailyMenuRepository;
     }
 
     // CREATE 
@@ -69,7 +79,9 @@ public class MealService {
 
         String text = buildMealText(meal);
         var prediction = aiAlergeneService.predictAllergens(text);
-        meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        if (prediction != null && prediction.getPredictedAllergens() != null) {
+            meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        }
         meal.setUserId(getCurrentUserId());
         Meal saved = mealRepository.save(meal);
 
@@ -121,6 +133,13 @@ public class MealService {
 
         calculateNutrition(meal);
 
+        String text = buildMealText(meal);
+        var prediction = aiAlergeneService.predictAllergens(text);
+
+        if (prediction != null && prediction.getPredictedAllergens() != null) {
+            meal.setPredictedAllergens(prediction.getPredictedAllergens());
+        }
+
         return mapMealToDTO(mealRepository.save(meal));
     }
 
@@ -133,6 +152,29 @@ public class MealService {
             throw new RuntimeException("Unauthorized");
         }
 
+        // CHECK MENU
+        if (dailyMenuRepository.existsByBreakfastId(id) ||
+            dailyMenuRepository.existsByLunchId(id) ||
+            dailyMenuRepository.existsByDinnerId(id)) {
+
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Ce repas est utilisé dans un menu"
+            );
+        }
+
+        // CHECK PLAN
+        if (dailyPlanRepository.existsByBreakfastId(id) ||
+            dailyPlanRepository.existsByLunchId(id) ||
+            dailyPlanRepository.existsByDinnerId(id)) {
+
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Ce repas est utilisé dans un plan"
+            );
+        }
+
+        // restore stock
         for (Ingredient ing : meal.getIngredients()) {
             Product product = ing.getProduct();
             product.setStock(product.getStock() + ing.getQuantity());
@@ -280,6 +322,15 @@ public class MealService {
         }
 
         return token.getToken().getSubject();
-}
+    }
+
+    private boolean hasRole(String role) {
+        JwtAuthenticationToken token =
+            (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+
+        return token.getToken().getClaimAsStringList("realm_access")
+                .toString()
+                .contains(role);
+    }
 
 }

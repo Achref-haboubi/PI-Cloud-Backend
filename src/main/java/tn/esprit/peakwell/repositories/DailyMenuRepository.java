@@ -11,5 +11,8 @@ public interface DailyMenuRepository extends JpaRepository<DailyMenu, Long>{
     Optional<DailyMenu> findByDate(LocalDate date);
     List<DailyMenu> findByDateBetween(LocalDate start, LocalDate end);
     long countByDateBetween(LocalDate start, LocalDate end);
+    boolean existsByBreakfastId(Long id);
+    boolean existsByLunchId(Long id);
+    boolean existsByDinnerId(Long id);
     
 }

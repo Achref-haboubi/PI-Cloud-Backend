@@ -12,7 +12,7 @@ public class RestaurantService implements IRestaurantService {
     public void createRestaurant(User user) {
 
         if (user.getRestaurant() != null) {
-            return; // already exists
+            return; 
         }
 
         Restaurant restaurant = new Restaurant();

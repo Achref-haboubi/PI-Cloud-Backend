@@ -1,16 +1,19 @@
 package tn.esprit.peakwell.services;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import tn.esprit.peakwell.dto.ProductDTO;
 import tn.esprit.peakwell.dto.ProductRequest;
 import tn.esprit.peakwell.entities.Category_Product;
 import tn.esprit.peakwell.entities.Product;
 import tn.esprit.peakwell.entities.StockStatus;
+import tn.esprit.peakwell.repositories.IngredientRepository;
 import tn.esprit.peakwell.repositories.ProductRepository;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -19,6 +22,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final EmailService emailService;
+    private final IngredientRepository ingredientRepository;
 
     private Product mapToEntity(ProductRequest dto) {
 
@@ -64,9 +68,10 @@ public class ProductService {
         return dto;
     }
 
-    public ProductService(ProductRepository productRepository, EmailService emailService) {
+    public ProductService(ProductRepository productRepository, EmailService emailService, IngredientRepository ingredientRepository) {
         this.productRepository = productRepository;
         this.emailService = emailService;
+        this.ingredientRepository = ingredientRepository;
     }
 
     public ProductDTO addProduct(ProductRequest request) {
@@ -135,6 +140,14 @@ public class ProductService {
     }
 
     public void deleteProduct(Long id) {
+
+        if (ingredientRepository.existsByProductId(id)) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Ce produit est utilisé dans un repas"
+            );
+        }
+
         productRepository.deleteById(id);
     }
 

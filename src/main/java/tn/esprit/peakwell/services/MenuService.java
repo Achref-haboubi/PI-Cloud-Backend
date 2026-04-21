@@ -87,7 +87,7 @@ public class MenuService {
 
             LocalDate date = startOfWeek.plusDays(i);
 
-            // ✅ éviter duplication
+            // éviter duplication
             if (menuRepository.findByDate(date).isPresent()) {
                 continue;
             }
@@ -154,25 +154,25 @@ public class MenuService {
     @Transactional
     public void reorderMenus(List<Long> orderedIds) {
 
-        // 1. récupérer tous les menus dans l’ordre actuel
+        // récupérer tous les menus dans l’ordre actuel
         List<DailyMenu> menus = orderedIds.stream()
                 .map(id -> menuRepository.findById(id)
                         .orElseThrow(() -> new RuntimeException("Menu not found")))
                 .toList();
 
-        // 2. récupérer toutes les dates triées
+        // récupérer toutes les dates triées
         List<LocalDate> dates = menus.stream()
                 .map(DailyMenu::getDate)
                 .sorted()
                 .toList();
 
-        // 3. réassigner les dates selon le nouvel ordre
+        // réassigner les dates selon le nouvel ordre
         for (int i = 0; i < menus.size(); i++) {
 
             DailyMenu menu = menus.get(i);
 
-            menu.setDate(dates.get(i));          // 🔥 SWAP DATE
-            menu.setDisplayOrder(i);             // optionnel
+            menu.setDate(dates.get(i));         
+            menu.setDisplayOrder(i);             
 
             menuRepository.save(menu);
         }

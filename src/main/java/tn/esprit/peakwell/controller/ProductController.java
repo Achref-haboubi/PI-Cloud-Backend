@@ -17,8 +17,13 @@ import tn.esprit.peakwell.dto.NutritionResponse;
 import java.util.Map;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/products")
@@ -59,8 +64,16 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+        try {
+            productService.deleteProduct(id);
+            return ResponseEntity.ok().build();
+
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("PRODUCT_IN_USE");
+        }
     }
 
     @PostMapping("/generate-description")
