@@ -20,14 +20,14 @@ public class MenuScheduler {
         this.menuRepository = menuRepository;
     }
 
-    // ✅ Vérifie si semaine complète
+    //  Vérifie si semaine complète
     private boolean isWeekGenerated(LocalDate start) {
         LocalDate end = start.plusDays(6);
         long count = menuRepository.countByDateBetween(start, end);
         return count >= 7;
     }
 
-    // 🔥 SAMEDI 00:00 → semaine suivante
+    //  SAMEDI 00:00 → semaine suivante
     @Scheduled(cron = "0 0 0 ? * SAT")
     public void generateNextWeekMenus() {
 
@@ -42,17 +42,19 @@ public class MenuScheduler {
     }
 
     // 🚀 AU DÉMARRAGE → semaine actuelle
-    @PostConstruct
-    public void generateMenuAtStartup() {
+    // @PostConstruct
+    // public void generateMenuAtStartup() {
 
-        LocalDate currentWeek = LocalDate.now()
-                .with(java.time.DayOfWeek.MONDAY);
+    //     LocalDate currentWeek = LocalDate.now()
+    //             .with(java.time.DayOfWeek.MONDAY);
 
-        if (!isWeekGenerated(currentWeek)) {
-            System.out.println("🔥 Génération semaine actuelle...");
-            //menuService.generateWeeklyMenu(currentWeek);
-        } else {
-            System.out.println("✅ Semaine déjà générée");
-        }
-    }
+
+    //     if (!isWeekGenerated(currentWeek)) {
+    //         System.out.println("🔥 Génération semaine actuelle...");
+    //         menuService.generateWeeklyMenu(currentWeek);
+    //     } else {
+    //         System.out.println("✅ Semaine déjà générée");
+    //     }
+    // }
+
 }

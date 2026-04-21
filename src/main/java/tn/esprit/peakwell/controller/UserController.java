@@ -41,10 +41,10 @@ public class UserController {
             @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
-       User user = userService.completeProfile(request, image, certificate);
+        User user = userService.completeProfile(request, image, certificate);
 
-       CurrentUserDTO dto = mapToDTO(user);
-        return  ResponseEntity.ok(dto);
+        CurrentUserDTO dto = mapToDTO(user);
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/me")
