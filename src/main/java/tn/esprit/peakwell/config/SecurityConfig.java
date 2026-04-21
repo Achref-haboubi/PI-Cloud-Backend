@@ -38,6 +38,10 @@ public class SecurityConfig {
                         .requestMatchers("/meals/**").permitAll()
                         .requestMatchers("/menu/**").permitAll()
                         .requestMatchers("/favorites/**").permitAll()
+
+                        .requestMatchers("/articles/images/**").permitAll()
+                        .requestMatchers("/articles/**").permitAll()
+                        .requestMatchers("/captcha/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

@@ -2,6 +2,8 @@ package tn.esprit.peakwell.services;
 
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
+
+import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.representations.idm.CredentialRepresentation;
@@ -26,6 +28,12 @@ public class KeycloakService implements IKeycloakService {
 
     @Value("${keycloak.client-id}")
     private String clientId;
+
+    @Value("${keycloak.server-url}")
+    private String serverUrl;
+
+    @Value("${keycloak.client-secret}")
+    private String clientSecret;
 
     @Value("${app.verify-email-redirect-url}")
     private String verifyEmailRedirectUrl;
@@ -68,7 +76,7 @@ public class KeycloakService implements IKeycloakService {
             keycloak.realm(realm)
                     .users()
                     .get(userId)
-                    .sendVerifyEmail(clientId, verifyEmailRedirectUrl);
+                    .sendVerifyEmail(clientId);
 
             return userId;
 
@@ -160,7 +168,7 @@ public class KeycloakService implements IKeycloakService {
                         "User not found in Keycloak");
             }
 
-            //  Update only if not null (PATCH behavior)
+            // Update only if not null (PATCH behavior)
             if (firstName != null) {
                 user.setFirstName(firstName);
             }
@@ -187,5 +195,58 @@ public class KeycloakService implements IKeycloakService {
     }
 
 
-    
+
+    @Override
+public boolean verifyOldPassword(String username, String oldPassword) {
+
+    if (username == null || oldPassword == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials input");
+    }
+
+    try {
+        Keycloak keycloakClient = KeycloakBuilder.builder()
+                .serverUrl(serverUrl) //  from config
+                .realm(realm)
+                .clientId(clientId)
+                .clientSecret(clientSecret) //  REQUIRED (your client is confidential)
+                .grantType(OAuth2Constants.PASSWORD)
+                .username(username) //  username NOT email
+                .password(oldPassword)
+                .build();
+
+        keycloakClient.tokenManager().getAccessToken();
+
+        return true;
+
+    } catch (Exception e) {
+        return false;
+    }}
+
+    @Override
+    public void updatePassword(String userId, String newPassword) {
+
+        if (userId == null || newPassword == null || newPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password data");
+        }
+
+        try {
+            CredentialRepresentation credential = new CredentialRepresentation();
+            credential.setType(CredentialRepresentation.PASSWORD);
+            credential.setValue(newPassword);
+            credential.setTemporary(false);
+
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .resetPassword(credential);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to update password in Keycloak");
+        }
+    }
+
 }

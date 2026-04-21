@@ -32,7 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 
-
+### Sensitive & Local Files ###
+.builder/config/data.json
 src/main/resources/application.properties
-
 application-secret.properties

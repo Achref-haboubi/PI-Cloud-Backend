@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tn.esprit.peakwell.dto.DailyMenuDTO;
 import tn.esprit.peakwell.dto.IngredientDTO;
@@ -19,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 
 
+@Slf4j
 @Service
 public class MenuService {
 
