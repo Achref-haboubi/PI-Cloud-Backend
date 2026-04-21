@@ -162,9 +162,9 @@ public class PatientInsightService {
             return null;
         }
 
-        // Use most recent completed/past consultation for days_since_last
+        // Use most recent COMPLETED consultation for days_since_last (cancelled ≠ actual visit)
         Optional<Consultation> lastCompleted = consults.stream()
-                .filter(c -> "COMPLETED".equals(c.getStatus()) || "CANCELLED".equals(c.getStatus()) || "REJECTED".equals(c.getStatus()))
+                .filter(c -> "COMPLETED".equals(c.getStatus()))
                 .filter(c -> c.getScheduledAt().isBefore(LocalDateTime.now()))
                 .findFirst(); // already sorted desc
         int daysSinceLast = lastCompleted
