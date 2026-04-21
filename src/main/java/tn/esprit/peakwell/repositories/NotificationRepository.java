@@ -21,4 +21,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
   // Prevent duplicate alerts — check if same type+title exists in last 24h
   boolean existsByProfileIdAndTypeAndTitleAndCreatedAtAfter(
     Long profileId, String type, String title, LocalDateTime after);
+
+  // ── Dietitian-scoped queries ─────────────────────
+  List<Notification> findAllByDietitianIdAndDismissedFalseOrderByCreatedAtDesc(Long dietitianId);
+  long countByDietitianIdAndReadFalseAndDismissedFalse(Long dietitianId);
+  boolean existsByDietitianIdAndTypeAndTitleAndCreatedAtAfter(
+    Long dietitianId, String type, String title, LocalDateTime after);
 }

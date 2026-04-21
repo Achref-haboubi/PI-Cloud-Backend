@@ -48,6 +48,17 @@ public class HealthGoal {
 
   private LocalDate achievedDate;
 
+  @Builder.Default
+  private Boolean paused = false;
+
+  @Column(columnDefinition = "TEXT")
+  private String pauseReason;
+
+  @Builder.Default
+  private Boolean assignedByDietitian = false;
+
+  private String assignedByDietitianName;
+
   @OneToMany(mappedBy = "goal", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
   @Builder.Default
   private List<GoalMilestone> milestones = new ArrayList<>();

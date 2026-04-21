@@ -19,6 +19,11 @@ public class Notification {
   @JoinColumn(name = "profile_id")
   private MedicalProfile profile;
 
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "dietitian_id")
+  private Dietitian dietitian;
+
   @Column(nullable = false)
   private String type;  // HEALTH_ALERT, APPOINTMENT_REMINDER, GOAL_UPDATE, SYSTEM, CRITICAL_RISK
 

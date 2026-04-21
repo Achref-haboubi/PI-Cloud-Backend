@@ -22,6 +22,10 @@ public class HealthGoalResponse {
   private Boolean achieved;
   private String achievedDate;
   private String createdAt;
+  private Boolean paused;
+  private String pauseReason;
+  private Boolean assignedByDietitian;
+  private String assignedByDietitianName;
   private List<MilestoneResponse> milestones;
 
   @Data
@@ -34,5 +38,6 @@ public class HealthGoalResponse {
     private Double targetValue;
     private Boolean reached;
     private String reachedDate;
+    private String note;
   }
 }

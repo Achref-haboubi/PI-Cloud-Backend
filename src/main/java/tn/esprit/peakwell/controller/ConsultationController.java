@@ -268,15 +268,31 @@ public class ConsultationController {
     List<tn.esprit.peakwell.entities.Student> students = consultService.getClientsForDietitian(did);
     List<Map<String, Object>> result = students.stream().map(s -> {
       java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
-      m.put("id",        s.getId());
-      m.put("firstName", s.getUser() != null ? s.getUser().getFirstName() : "");
-      m.put("lastName",  s.getUser() != null ? s.getUser().getLastName()  : "");
-      m.put("email",     s.getUser() != null ? s.getUser().getEmail()     : "");
-      m.put("imageUrl",  s.getUser() != null ? s.getUser().getImgUrl()    : null);
-      m.put("enabled",   s.getUser() != null ? s.getUser().isEnabled()    : true);
-      m.put("goal",      s.getGoal());
-      m.put("weight",    s.getWeight());
-      m.put("bmi",       s.getBmi());
+      m.put("id",            s.getId());
+      m.put("firstName",     s.getUser() != null ? s.getUser().getFirstName() : "");
+      m.put("lastName",      s.getUser() != null ? s.getUser().getLastName()  : "");
+      m.put("email",         s.getUser() != null ? s.getUser().getEmail()     : "");
+      m.put("imageUrl",      s.getUser() != null ? s.getUser().getImgUrl()    : null);
+      m.put("enabled",       s.getUser() != null ? s.getUser().isEnabled()    : true);
+      m.put("goal",          s.getGoal());
+      m.put("weight",        s.getWeight());
+      m.put("bmi",           s.getBmi());
+      m.put("activityLevel", s.getActivityLevel());
+      // Age from medical profile dateOfBirth
+      tn.esprit.peakwell.entities.MedicalProfile mp = s.getMedicalProfile();
+      Integer age = null;
+      Boolean profileCompleted = false;
+      if (mp != null) {
+        profileCompleted = mp.getComplete();
+        if (mp.getDateOfBirth() != null && !mp.getDateOfBirth().isBlank()) {
+          try {
+            java.time.LocalDate dob = java.time.LocalDate.parse(mp.getDateOfBirth());
+            age = java.time.Period.between(dob, java.time.LocalDate.now()).getYears();
+          } catch (Exception ignored) {}
+        }
+      }
+      m.put("age",              age);
+      m.put("profileCompleted", profileCompleted);
       return m;
     }).collect(java.util.stream.Collectors.toList());
     return ResponseEntity.ok(result);

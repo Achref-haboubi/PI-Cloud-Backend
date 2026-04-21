@@ -29,4 +29,7 @@ public class GoalMilestone {
   private Boolean reached = false;
 
   private String reachedDate;     // "Mar 16" — stored as display string
+
+  @Column(columnDefinition = "TEXT")
+  private String note;
 }

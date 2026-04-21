@@ -9,6 +9,7 @@ import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.BiometricService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,8 +39,12 @@ public class BiometricController {
     }
 
     @PostMapping
-    public ResponseEntity<BiometricResponse> addEntry(@Valid @RequestBody BiometricRequest request) {
-        return ResponseEntity.ok(biometricService.addEntry(request, resolveUserId()));
+    public ResponseEntity<?> addEntry(@Valid @RequestBody BiometricRequest request) {
+        try {
+            return ResponseEntity.ok(biometricService.addEntry(request, resolveUserId()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @GetMapping("/latest")

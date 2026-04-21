@@ -32,6 +32,7 @@ public class ConsultationService {
   private final EmailConsultationService emailService;
   private final DietitianRepository dietitianRepo;
   private final AutoApprovalService autoApprovalService;
+  private final NotificationService notificationService;
 
   private static final Long PROFILE_ID = 1L;
 
@@ -127,6 +128,15 @@ public class ConsultationService {
     Consultation saved = consultRepo.save(c);
     sendEmailIfPossible(saved, "BOOKED");
 
+    // Notify the dietitian of the new booking
+    if (dietitian != null) {
+      String patientName = profile != null && profile.getFirstName() != null
+        ? profile.getFirstName() + " " + profile.getLastName() : "A patient";
+      String slot = saved.getScheduledAt() != null
+        ? saved.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("MMM d 'at' HH:mm")) : "";
+      notificationService.notifyNewBooking(dietitian, patientName, slot);
+    }
+
     // Immediately evaluate the new consultation against the auto-approval rules
     autoApprovalService.evaluate(saved, LocalDateTime.now());
     // Re-fetch to return the final status after evaluation
@@ -159,6 +169,14 @@ public class ConsultationService {
     Consultation c = find(id);
     c.setStatus("CANCELLED");
     consultRepo.save(c);
+    // Notify the dietitian of the cancellation
+    if (c.getDietitian() != null) {
+      String patientName = c.getProfile() != null && c.getProfile().getFirstName() != null
+        ? c.getProfile().getFirstName() + " " + c.getProfile().getLastName() : "A patient";
+      String slot = c.getScheduledAt() != null
+        ? c.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("MMM d 'at' HH:mm")) : "";
+      notificationService.notifyConsultationCancelled(c.getDietitian(), patientName, slot);
+    }
     // Promote the next waitlisted patient if this slot just freed up
     autoApprovalService.checkWaitlist(c);
   }
