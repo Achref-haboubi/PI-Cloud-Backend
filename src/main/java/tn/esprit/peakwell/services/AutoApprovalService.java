@@ -27,8 +27,7 @@ import java.util.Map;
  *     working hours / days                     → REJECTED  (outside schedule)
  *  4. Conflict with an existing UPCOMING for
  *     the same dietitian                        → REJECTED  (slot taken)
- *  5. scheduledAt > now + 48 h                 → UPCOMING  (auto-accepted)
- *  6. Between 2 h and 48 h                     → left PENDING_APPROVAL (manual review)
+ *  5. All checks passed                         → UPCOMING  (auto-accepted)
  */
 @Service
 @Slf4j
@@ -162,89 +161,20 @@ public class AutoApprovalService {
         return;
       }
 
-      // Rule 4 — slot conflict → add to waitlist instead of rejecting
+      // Rule 4 — slot conflict → reject
       int duration = c.getDurationMinutes() != null ? c.getDurationMinutes() : 60;
       LocalDateTime windowEnd = scheduled.plusMinutes(duration);
       if (consultationRepo.existsConflict(d.getId(), scheduled, windowEnd)) {
-        waitlist(c, d.getId());
+        reject(c, "Ce créneau est déjà pris par une autre consultation.");
         return;
       }
     }
 
-    // Rule 5 — more than 48 hours away → auto-accept
-    if (minutesUntil > 2880) {
-      accept(c);
-      return;
-    }
-
-    // Rule 6 — between 2 h and 48 h → leave pending for manual review
-    log.info("[AutoApproval] Consultation {} left PENDING ({}h ahead — manual review window)",
-        c.getId(), minutesUntil / 60);
+    // All checks passed → auto-accept
+    accept(c);
   }
 
   // ── State transitions ─────────────────────────────────────────────────────
-
-  private void waitlist(Consultation c, Long dietitianId) {
-    c.setStatus("WAITLISTED");
-    consultationRepo.save(c);
-    log.info("[AutoApproval] Consultation {} WAITLISTED (slot conflict)", c.getId());
-
-    // Compute position: count how many WAITLISTED for same dietitian come before this one
-    try {
-      List<Consultation> ordered = consultationRepo.findWaitlistedByDietitian(dietitianId);
-      int position = 1;
-      for (int i = 0; i < ordered.size(); i++) {
-        if (ordered.get(i).getId().equals(c.getId())) { position = i + 1; break; }
-      }
-      String email = patientEmail(c);
-      if (email != null) {
-        emailService.sendWaitlistAdded(email, patientName(c), c.getDoctorName(), c.getScheduledAt().format(FMT), position);
-      }
-    } catch (Exception ex) {
-      log.warn("[AutoApproval] Could not send waitlist email for {}: {}", c.getId(), ex.getMessage());
-    }
-  }
-
-  /**
-   * Called when a consultation is cancelled.
-   * Promotes the highest-priority (then oldest) WAITLISTED consultation for the same dietitian
-   * whose slot is now free.
-   */
-  @Transactional
-  public void checkWaitlist(Consultation cancelled) {
-    try {
-      Long dietitianId = cancelled.getDietitian() != null
-          ? cancelled.getDietitian().getId()
-          : dietitianRepo.findFirstBy().map(d -> d.getId()).orElse(null);
-      if (dietitianId == null) return;
-
-      List<Consultation> waitlisted =
-          consultationRepo.findWaitlistedByDietitian(dietitianId);
-
-      LocalDateTime now = LocalDateTime.now();
-      for (Consultation w : waitlisted) {
-        if (w.getScheduledAt().isBefore(now)) continue; // skip past slots
-
-        int dur = w.getDurationMinutes() != null ? w.getDurationMinutes() : 60;
-        LocalDateTime windowEnd = w.getScheduledAt().plusMinutes(dur);
-
-        if (!consultationRepo.existsConflict(dietitianId, w.getScheduledAt(), windowEnd)) {
-          // Promote this consultation
-          w.setStatus("UPCOMING");
-          consultationRepo.save(w);
-          log.info("[Waitlist] Consultation {} promoted from WAITLISTED to UPCOMING", w.getId());
-
-          String email = patientEmail(w);
-          if (email != null) {
-            emailService.sendWaitlistPromoted(email, patientName(w), w.getDoctorName(), w.getScheduledAt().format(FMT));
-          }
-          break; // promote only one at a time
-        }
-      }
-    } catch (Exception ex) {
-      log.warn("[Waitlist] checkWaitlist error: {}", ex.getMessage());
-    }
-  }
 
   private void reject(Consultation c, String reason) {
     c.setStatus("REJECTED");

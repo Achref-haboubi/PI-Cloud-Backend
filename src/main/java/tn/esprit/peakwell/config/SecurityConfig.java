@@ -34,6 +34,7 @@ public class SecurityConfig {
                     .requestMatchers("/images/**").permitAll()
                     .requestMatchers("/ai/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/dietitian/all").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/consultations/confirm-slot").permitAll()
                     .requestMatchers("/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
@@ -55,8 +56,9 @@ public class SecurityConfig {
     DefaultBearerTokenResolver delegate = new DefaultBearerTokenResolver();
     return request -> {
       String path = request.getRequestURI();
-      // Don't extract token for public auth endpoints — avoids 401 on invalid tokens
-      if (path.startsWith("/peakwell/auth/") || path.startsWith("/auth/")) {
+      // Don't extract token for public endpoints — avoids 401 on requests without a token
+      if (path.startsWith("/peakwell/auth/") || path.startsWith("/auth/")
+          || path.contains("/api/consultations/confirm-slot")) {
         return null;
       }
       return delegate.resolve(request);

@@ -125,6 +125,18 @@ public class DietitianService implements IDietitianService{
       m.put("lastName",  lastName);
       m.put("email",     u.getEmail());
       m.put("imageUrl",  u.getImgUrl());
+      // Build address string: street, city, state (no postal code, no country)
+      String address = null;
+      if (u.getAddress() != null) {
+        tn.esprit.peakwell.entities.Address a = u.getAddress();
+        StringBuilder sb = new StringBuilder();
+        if (a.getStreet() != null && !a.getStreet().isBlank()) sb.append(a.getStreet()).append(", ");
+        if (a.getCity()   != null && !a.getCity().isBlank())   sb.append(a.getCity()).append(", ");
+        if (a.getState()  != null && !a.getState().isBlank())  sb.append(a.getState());
+        address = sb.toString().replaceAll(",\\s*$", "").trim();
+        if (address.isEmpty()) address = null;
+      }
+      m.put("address", address);
       Dietitian d = u.getDietitian();
       if (d != null) {
         m.put("specialization",    d.getSpecialization());

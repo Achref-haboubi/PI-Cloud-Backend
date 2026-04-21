@@ -6,11 +6,14 @@ import tn.esprit.peakwell.dto.ConsultationResponse;
 import tn.esprit.peakwell.entities.*;
 import tn.esprit.peakwell.repositories.*;
 import tn.esprit.peakwell.repositories.DietitianRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -32,8 +35,8 @@ public class ConsultationService {
   private final EmailConsultationService emailService;
   private final DietitianRepository dietitianRepo;
   private final AutoApprovalService autoApprovalService;
-
-  private static final Long PROFILE_ID = 1L;
+  private final UserRepository userRepository;
+  private final AuthService authService;
 
   public List<ConsultationResponse> getAll(Long dietitianId) {
     if (dietitianId == null)
@@ -42,34 +45,22 @@ public class ConsultationService {
     return consultRepo.findByDietitianIdAndStatusNotOrderByScheduledAtDesc(dietitianId, "CANCELLED")
             .stream().map(this::toResponse).collect(Collectors.toList());
   }
+  private MedicalProfile currentProfile() {
+    String keycloakId = authService.getCurrentUserId();
+    User user = userRepository.findByKeycloakId(keycloakId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    return profileRepo.findByStudentId(user.getId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medical profile not found"));
+  }
+
   public List<ConsultationResponse> getUpcoming() {
-    List<Consultation> all = consultRepo.findByScheduledAtAfterOrderByScheduledAtAsc(LocalDateTime.now())
-            .stream().filter(c -> !"CANCELLED".equals(c.getStatus())).collect(Collectors.toList());
-
-    // Pre-compute waitlist positions per dietitian (priority → createdAt order)
-    // Group waitlisted by dietitian id
-    Map<Long, List<Consultation>> waitlistedByDietitian = all.stream()
-            .filter(c -> "WAITLISTED".equals(c.getStatus()))
-            .collect(Collectors.groupingBy(c -> c.getDietitian() != null ? c.getDietitian().getId() : 0L));
-
-    // Sort each group: URGENT first, then by createdAt
-    Map<String, Integer> priorityOrder = Map.of("URGENT", 1, "HIGH", 2, "NORMAL", 3, "LOW", 4);
-    waitlistedByDietitian.values().forEach(list ->
-            list.sort(Comparator
-                    .comparingInt((Consultation c) -> priorityOrder.getOrDefault(c.getPriority(), 5))
-                    .thenComparing(Consultation::getCreatedAt)));
-
-    // Build id → position map
-    Map<Long, Integer> positionMap = new LinkedHashMap<>();
-    waitlistedByDietitian.forEach((did, list) -> {
-      for (int i = 0; i < list.size(); i++) positionMap.put(list.get(i).getId(), i + 1);
-    });
-
-    return all.stream().map(c -> {
-      ConsultationResponse r = toResponse(c);
-      if ("WAITLISTED".equals(c.getStatus())) r.setWaitlistPosition(positionMap.get(c.getId()));
-      return r;
-    }).collect(Collectors.toList());
+    Long profileId = currentProfile().getId();
+    return consultRepo.findByScheduledAtAfterOrderByScheduledAtAsc(LocalDateTime.now())
+            .stream()
+            .filter(c -> !"CANCELLED".equals(c.getStatus()))
+            .filter(c -> c.getProfile() != null && profileId.equals(c.getProfile().getId()))
+            .map(this::toResponse)
+            .collect(Collectors.toList());
   }
 
   public List<ConsultationResponse> getPending(Long dietitianId) {
@@ -102,14 +93,18 @@ public class ConsultationService {
     return toResponse(saved);
   }
   public List<ConsultationResponse> getPast() {
+    Long profileId = currentProfile().getId();
     return consultRepo.findByScheduledAtBeforeAndStatusNotOrderByScheduledAtDesc(LocalDateTime.now(), "CANCELLED")
-            .stream().map(this::toResponse).collect(Collectors.toList());
+            .stream()
+            .filter(c -> c.getProfile() != null && profileId.equals(c.getProfile().getId()))
+            .map(this::toResponse)
+            .collect(Collectors.toList());
   }
   public ConsultationResponse getById(Long id) { return toResponse(find(id)); }
 
   @Transactional
   public ConsultationResponse book(ConsultationRequest req) {
-    MedicalProfile profile = profileRepo.findById(PROFILE_ID).orElse(null);
+    MedicalProfile profile = currentProfile();
     Dietitian dietitian = req.getDietitianId() != null
             ? dietitianRepo.findById(req.getDietitianId()).orElse(null) : null;
     Consultation c = Consultation.builder()
@@ -159,8 +154,23 @@ public class ConsultationService {
     Consultation c = find(id);
     c.setStatus("CANCELLED");
     consultRepo.save(c);
-    // Promote the next waitlisted patient if this slot just freed up
-    autoApprovalService.checkWaitlist(c);
+    notifyDietitianOfCancellation(c);
+  }
+
+  private void notifyDietitianOfCancellation(Consultation c) {
+    try {
+      if (c.getDietitian() == null) return;
+      User dietitianUser = c.getDietitian().getUser();
+      if (dietitianUser == null || dietitianUser.getEmail() == null) return;
+      String dietitianName = (dietitianUser.getFirstName() + " " + dietitianUser.getLastName()).trim();
+      String patientName = c.getProfile() != null
+              ? (c.getProfile().getFirstName() + " " + c.getProfile().getLastName()).trim()
+              : "A patient";
+      String date = c.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'at' HH:mm"));
+      emailService.sendCancellationToDietitian(dietitianUser.getEmail(), dietitianName, patientName, date);
+    } catch (Exception ex) {
+      log.warn("Could not send cancellation email to dietitian for consultation {}: {}", c.getId(), ex.getMessage());
+    }
   }
 
   @Transactional

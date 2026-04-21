@@ -65,6 +65,17 @@ public class EmailConsultationService {
     send(to, subject, body);
   }
 
+  public void sendCancellationToDietitian(String to, String dietitianName, String patientName, String date) {
+    String subject = "❌ Appointment Cancelled — PeakWell";
+    String body = template(dietitianName,
+      "An appointment has been cancelled",
+      "Your patient <strong>" + patientName + "</strong> has cancelled their consultation scheduled for <strong>" + date + "</strong>.<br><br>" +
+      "This slot is now free. You can log in to PeakWell to view your updated schedule.",
+      "#c96a3f", "❌ Cancelled by Patient"
+    );
+    send(to, subject, body);
+  }
+
   public void sendBookingRejected(String to, String patientName, String doctorName, String date, String reason) {
     String subject = "❌ Appointment Request Declined — PeakWell";
     String reasonBlock = (reason != null && !reason.isBlank())
@@ -188,31 +199,6 @@ public class EmailConsultationService {
       "Vous avez confirmé un nouveau créneau avec <strong>" + doctorName + "</strong> le <strong>" + date + "</strong>.<br><br>" +
       "Votre rendez-vous a été enregistré et sera prêt à votre arrivée.",
       "#7a9e7e", "✅ Confirmé"
-    );
-    send(to, subject, body);
-  }
-
-  public void sendWaitlistAdded(String to, String patientName, String doctorName, String date, int position) {
-    String subject = "⏳ You're on the waitlist — PeakWell";
-    String posLabel = position == 1 ? "You are <strong>#1 on the waitlist</strong>" : "You are <strong>#" + position + " on the waitlist</strong>";
-    String body = template(patientName,
-      "You've been added to the waitlist",
-      "The slot you requested with <strong>" + doctorName + "</strong> on <strong>" + date + "</strong> is currently taken.<br><br>" +
-      posLabel + " for this slot. If the current appointment is cancelled, yours will be <strong>automatically confirmed</strong> — no action needed.<br><br>" +
-      "We'll notify you by email as soon as a spot opens up.",
-      "#a78bfa", "⏳ On Waitlist"
-    );
-    send(to, subject, body);
-  }
-
-  public void sendWaitlistPromoted(String to, String patientName, String doctorName, String date) {
-    String subject = "🎉 Great news — Your appointment is confirmed! — PeakWell";
-    String body = template(patientName,
-      "A spot opened up — you're confirmed!",
-      "You were on the waitlist for a consultation with <strong>" + doctorName + "</strong>.<br><br>" +
-      "A spot has become available and your appointment on <strong>" + date + "</strong> has been <strong>automatically confirmed</strong>.<br><br>" +
-      "Please make sure you are available at the scheduled time.",
-      "#7a9e7e", "✅ Confirmed from Waitlist"
     );
     send(to, subject, body);
   }

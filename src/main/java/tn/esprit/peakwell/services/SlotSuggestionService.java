@@ -152,8 +152,7 @@ public class SlotSuggestionService {
       throw new RuntimeException("Ce créneau n'est plus disponible. Veuillez contacter votre nutritionniste.");
 
     // Mark all sibling suggestions as used (only one slot per rejection can be confirmed)
-    slotRepo.findAll().stream()
-        .filter(s -> s.getOriginalConsultation().getId().equals(original.getId()) && !s.isUsed())
+    slotRepo.findByOriginalConsultationIdAndUsedFalse(original.getId())
         .forEach(s -> { s.setUsed(true); slotRepo.save(s); });
 
     // Create new consultation

@@ -20,26 +20,6 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
   List<Consultation> findByDietitianIdAndStatusNotOrderByScheduledAtDesc(Long dietitianId, String status);
   List<Consultation> findByDietitianIdAndStatusOrderByScheduledAtAsc(Long dietitianId, String status);
 
-  /**
-   * All WAITLISTED consultations for a dietitian, ordered by priority (URGENT first) then by createdAt.
-   * This defines the Option-B promotion order.
-   */
-  @Query("""
-      SELECT c FROM Consultation c
-      WHERE c.dietitian.id = :dietitianId
-        AND c.status = 'WAITLISTED'
-      ORDER BY
-        CASE c.priority
-          WHEN 'URGENT' THEN 1
-          WHEN 'HIGH'   THEN 2
-          WHEN 'NORMAL' THEN 3
-          WHEN 'LOW'    THEN 4
-          ELSE 5
-        END ASC,
-        c.createdAt ASC
-      """)
-  List<Consultation> findWaitlistedByDietitian(@Param("dietitianId") Long dietitianId);
-
   /** Distinct students who have at least one non-cancelled consultation with this dietitian */
   @Query("""
       SELECT DISTINCT c.profile.student FROM Consultation c
