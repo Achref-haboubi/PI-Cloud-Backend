@@ -29,6 +29,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
+                        .requestMatchers("/activity/**").permitAll()
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers("/ai/**").permitAll()
                         .requestMatchers("/api/**").permitAll()
