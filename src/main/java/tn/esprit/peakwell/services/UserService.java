@@ -24,6 +24,7 @@ import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserGrowthDTO;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.dto.UserStatsDTO;
+import tn.esprit.peakwell.entities.ActivityType;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class UserService implements IUserService {
     private final IFileUploadService fileUploadService;
     private final KeycloakService keycloakService;
     private final RestaurantService restaurantService;
+    private final UserActivityService activityService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -148,7 +150,12 @@ public class UserService implements IUserService {
                         HttpStatus.BAD_REQUEST, "Invalid role");
             }
 
-            return userRepository.save(user);
+            User savedUser = userRepository.save(user);
+
+            activityService.log(user, ActivityType.PROFILE_UPDATE,
+                    role + " profile completed", "SUCCESS", null);
+
+            return savedUser;
 
         } catch (ResponseStatusException ex) {
             throw ex;
@@ -160,149 +167,135 @@ public class UserService implements IUserService {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Something went wrong. Please try again later.");
         }
-        
     }
 
-    public UserProfile updateProfile(UpdateProfileRequest request,
-                                 MultipartFile image,
-                                 MultipartFile certificate) {
+    public UserProfile updateProfile(UpdateProfileRequest request, MultipartFile image, MultipartFile certificate) {
 
-    try {
+        try {
 
-        String keycloakId = authService.getCurrentUserId();
+            String keycloakId = authService.getCurrentUserId();
 
-        User user = userRepository.findByKeycloakId(keycloakId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "User not found"));
+            User user = userRepository.findByKeycloakId(keycloakId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "User not found"));
 
-        String role = user.getRole().name();
+            String role = user.getRole().name();
 
-        boolean nameUpdated = false;
+            boolean nameUpdated = false;
 
-        //  Update names
-        if (request.getFirstName() != null) {
-            user.setFirstName(request.getFirstName());
-            nameUpdated = true;
-        }
-
-        if (request.getLastName() != null) {
-            user.setLastName(request.getLastName());
-            nameUpdated = true;
-        }
-
-        if (nameUpdated) {
-            keycloakService.updateUserNames(
-                    keycloakId,
-                    user.getFirstName(),
-                    user.getLastName());
-        }
-
-        //  Upload files
-        String imageUrl = null;
-        String certificateUrl = null;
-
-        if (image != null && !image.isEmpty()) {
-            imageUrl = fileUploadService.uploadFile(image, role, "profile");
-        }
-
-        if (certificate != null && !certificate.isEmpty()) {
-            certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
-        }
-
-        //  Update basic user info
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-            user.setPhoneNumber(request.getPhoneNumber());
-        }
-
-        if (request.getAddress() != null) {
-            user.setAddress(request.getAddress());
-        }
-
-        if (imageUrl != null) {
-            user.setImgUrl(imageUrl);
-        }
-
-        if (certificateUrl != null) {
-            request.setCertification(certificateUrl);
-        }
-
-        // 🔥 ROLE HANDLING
-
-        if ("STUDENT".equals(role)) {
-
-            if (user.getStudent() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Student profile not found");
+            // Update names
+            if (request.getFirstName() != null) {
+                user.setFirstName(request.getFirstName());
+                nameUpdated = true;
             }
 
-            studentService.updateStudentProfile(user, request);
-
-        }
-
-        else if ("DIETITIAN".equals(role)) {
-
-            if (user.getDietitian() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Dietitian profile not found");
+            if (request.getLastName() != null) {
+                user.setLastName(request.getLastName());
+                nameUpdated = true;
             }
 
-            dietitianService.updateDietitianProfile(user, request);
-
-        }
-
-        else if ("RESTAURANT".equals(role)) {
-
-            if (user.getRestaurant() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Restaurant profile not found");
+            if (nameUpdated) {
+                keycloakService.updateUserNames(
+                        keycloakId,
+                        user.getFirstName(),
+                        user.getLastName());
             }
 
-            // ✅ If you have restaurant fields later
-            // restaurantService.updateRestaurantProfile(user, request);
+            // Upload files
+            String imageUrl = null;
+            String certificateUrl = null;
 
-            // 👉 For now: nothing extra (only contact info already updated)
+            if (image != null && !image.isEmpty()) {
+                imageUrl = fileUploadService.uploadFile(image, role, "profile");
+            }
 
-        }
+            if (certificate != null && !certificate.isEmpty()) {
+                certificateUrl = fileUploadService.uploadFile(certificate, role, "certificate");
+            }
 
-        else if ("ADMIN".equals(role)) {
+            // Update basic user info
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+                user.setPhoneNumber(request.getPhoneNumber());
+            }
 
-            // ✅ Admin only updates basic info (name, phone, address, image)
-            // 👉 No extra entity
+            if (request.getAddress() != null) {
+                user.setAddress(request.getAddress());
+            }
 
-        }
+            if (imageUrl != null) {
+                user.setImgUrl(imageUrl);
+            }
 
-        else {
+            if (certificateUrl != null) {
+                request.setCertification(certificateUrl);
+            }
+
+            // ROLE HANDLING
+
+            if ("STUDENT".equals(role)) {
+
+                if (user.getStudent() == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Student profile not found");
+                }
+
+                studentService.updateStudentProfile(user, request);
+
+            } else if ("DIETITIAN".equals(role)) {
+
+                if (user.getDietitian() == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Dietitian profile not found");
+                }
+
+                dietitianService.updateDietitianProfile(user, request);
+
+            } else if ("RESTAURANT".equals(role)) {
+
+                if (user.getRestaurant() == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Restaurant profile not found");
+                }
+
+                // restaurantService.updateRestaurantProfile(user, request);
+
+            } else if ("ADMIN".equals(role)) {
+
+                // Admin only updates basic info (name, phone, address, image)
+
+            } else {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Invalid role");
+            }
+
+            userRepository.save(user);
+
+            activityService.log(user, ActivityType.PROFILE_UPDATE,
+                    role + " profile updated", "SUCCESS", null);
+
+            return mapToUserProfile(user);
+
+        } catch (ResponseStatusException ex) {
+            throw ex;
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Invalid role");
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Something went wrong while updating profile");
         }
-
-        userRepository.save(user);
-
-        return mapToUserProfile(user);
-
-    } catch (ResponseStatusException ex) {
-        throw ex;
-
-    } catch (Exception ex) {
-        ex.printStackTrace();
-
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Something went wrong while updating profile");
     }
-}
 
     @Override
     @Transactional(readOnly = true)
     public UserProfile getCurrentUserProfile() {
 
-        // Get current user
         String keycloakId = authService.getCurrentUserId();
 
         User user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Basic mapping
         UserProfile profile = new UserProfile();
         profile.setId(user.getId());
         profile.setEmail(user.getEmail());
@@ -315,7 +308,6 @@ public class UserService implements IUserService {
         profile.setImageUrl(user.getImgUrl());
         profile.setAddress(user.getAddress());
 
-        // Delegate to services
         if (user.getRole().toString().equals("STUDENT")) {
             profile.setStudentProfile(studentService.getStudentProfile(user));
         }
@@ -336,45 +328,43 @@ public class UserService implements IUserService {
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND, "User not found"));
 
-            // Compute new status (DON’T save yet if you want strict consistency)
             boolean newStatus = !user.isEnabled();
 
-            // Validate subject
             if (request.getSubject() == null || request.getSubject().isBlank()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Subject is required");
             }
 
-            // Validate message
             if (request.getMessage() == null || request.getMessage().isBlank()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Message is required");
             }
 
-            // Sanitize message
             String safeMessage = request.getMessage()
                     .replaceAll("<", "&lt;")
                     .replaceAll(">", "&gt;");
 
-            // Use HashMap (mutable)
             Map<String, Object> variables = new HashMap<>();
             variables.put("name", user.getFirstName());
             variables.put("status", newStatus ? "ACTIVE" : "BANNED");
             variables.put("message", safeMessage);
-            variables.put("appUrl", frontendUrl); // FIXED
+            variables.put("appUrl", frontendUrl);
 
-            // Send email FIRST (important for consistency)
+            // Send email FIRST
             emailService.sendAccountStatusEmail(
                     user.getEmail(),
                     request.getSubject(),
                     "account-status",
                     variables);
 
-            // Only update AFTER email success
             user.setEnabled(newStatus);
             userRepository.save(user);
+
+            String action = newStatus ? "Account enabled" : "Account disabled";
+            activityService.log(user, ActivityType.ADMIN_ACTION,
+                    action + " by admin", "SUCCESS", null);
 
         } catch (ResponseStatusException ex) {
             throw ex;
@@ -476,8 +466,6 @@ public class UserService implements IUserService {
         }
     }
 
-    // --------------------------------------------------
-
     @Override
     public List<RoleStatsDTO> getRoleStats() {
         try {
@@ -501,8 +489,6 @@ public class UserService implements IUserService {
         }
     }
 
-    // --------------------------------------------------
-
     @Override
     public List<UserGrowthDTO> getGrowth() {
         try {
@@ -525,8 +511,6 @@ public class UserService implements IUserService {
                     "Error while fetching growth statistics");
         }
     }
-
-    // --------------------------------------------------
 
     @Override
     public List<RiskUserDTO> getTopRiskUsers() {
@@ -554,8 +538,6 @@ public class UserService implements IUserService {
                     "Error while fetching risky users");
         }
     }
-
-    // --------------------------------------------------
 
     @Override
     public FailedAttemptsStatsDTO getFailedAttemptsStats() {

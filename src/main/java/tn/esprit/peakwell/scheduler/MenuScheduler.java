@@ -44,19 +44,19 @@ public class MenuScheduler {
     }
 
     // AU DÉMARRAGE → semaine actuelle
-    @PostConstruct
-    public void generateMenuAtStartup() {
+    // @PostConstruct
+    // public void generateMenuAtStartup() {
 
-        LocalDate currentWeek = LocalDate.now()
-                .with(java.time.DayOfWeek.MONDAY);
+    //     LocalDate currentWeek = LocalDate.now()
+    //             .with(java.time.DayOfWeek.MONDAY);
 
-        if (!isWeekGenerated(currentWeek)) {
-            System.out.println("Génération semaine actuelle...");
-            menuService.generateWeeklyMenu(currentWeek);
-            System.out.println("🔥 Génération semaine actuelle...");
-            //menuService.generateWeeklyMenu(currentWeek);
-        } else {
-            System.out.println("Semaine déjà générée");
-        }
-    }
+    //     if (!isWeekGenerated(currentWeek)) {
+    //         System.out.println("Génération semaine actuelle...");
+    //         menuService.generateWeeklyMenu(currentWeek);
+    //         System.out.println("🔥 Génération semaine actuelle...");
+    //         //menuService.generateWeeklyMenu(currentWeek);
+    //     } else {
+    //         System.out.println("Semaine déjà générée");
+    //     }
+    // }
 }

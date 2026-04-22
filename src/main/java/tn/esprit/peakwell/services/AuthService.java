@@ -22,6 +22,7 @@ import tn.esprit.peakwell.dto.AuthResponse;
 import tn.esprit.peakwell.dto.FaceLoginRequest;
 import tn.esprit.peakwell.dto.LoginRequest;
 import tn.esprit.peakwell.dto.RegisterRequest;
+import tn.esprit.peakwell.entities.ActivityType;
 import tn.esprit.peakwell.entities.Role;
 import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.UserRepository;
@@ -34,6 +35,7 @@ import java.util.Map;
 public class AuthService implements IAuthService {
 
     private final KeycloakService keycloakService;
+    private final UserActivityService activityService;
     private final AiService aiService;
     @Autowired
     UserRepository userRepository;
@@ -107,13 +109,15 @@ public class AuthService implements IAuthService {
 
             Map<String, Object> res = response.getBody();
 
-            // SUCCESS reset attempts
+            // SUCCESS — reset attempts
             handleSuccessLogin(user);
 
             AuthResponse auth = new AuthResponse();
             auth.setAccessToken((String) res.get("access_token"));
             auth.setRefreshToken((String) res.get("refresh_token"));
             auth.setExpiresIn((Integer) res.get("expires_in"));
+
+            activityService.log(user, ActivityType.LOGIN, "User logged in", "SUCCESS", null);
 
             return ResponseEntity.ok(auth);
 
@@ -123,6 +127,8 @@ public class AuthService implements IAuthService {
             if (e.getStatusCode().value() == 401) {
 
                 handleFailedLogin(user);
+
+                activityService.log(user, ActivityType.LOGIN_FAILED, "Failed login attempt - wrong password", "FAILED", null);
 
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
@@ -184,6 +190,10 @@ public class AuthService implements IAuthService {
         }
 
         if (confidence < FACE_MATCH_THRESHOLD) {
+            handleFailedLogin(user);
+            activityService.log(user, ActivityType.LOGIN_FAILED,
+                    "Face login failed - confidence: " + String.format("%.2f", confidence), "FAILED", null);
+
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of(
@@ -191,7 +201,7 @@ public class AuthService implements IAuthService {
                             "confidence", confidence));
         }
 
-        // Face matched than get Keycloak token via service account impersonation
+        // Face matched — get Keycloak token via service account impersonation
         try {
             String tokenUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
@@ -209,7 +219,7 @@ public class AuthService implements IAuthService {
 
             String serviceAccountToken = (String) saResponse.getBody().get("access_token");
 
-            // Step token exchange impersonate the user
+            // Step token exchange — impersonate the user
             MultiValueMap<String, String> exchangeBody = new LinkedMultiValueMap<>();
             exchangeBody.add("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange");
             exchangeBody.add("client_id", clientId);
@@ -230,6 +240,8 @@ public class AuthService implements IAuthService {
             auth.setAccessToken((String) res.get("access_token"));
             auth.setRefreshToken((String) res.get("refresh_token"));
             auth.setExpiresIn((Integer) res.get("expires_in"));
+
+            activityService.log(user, ActivityType.LOGIN, "User logged in via face recognition", "SUCCESS", null);
 
             return ResponseEntity.ok(auth);
 
@@ -259,6 +271,8 @@ public class AuthService implements IAuthService {
             user.setRole(Role.valueOf(request.getRole()));
 
             userRepository.save(user);
+
+            activityService.log(user, ActivityType.LOGIN, "User registered successfully", "SUCCESS", null);
 
             return ResponseEntity.status(201).body(
                     Map.of("message", "User registered successfully"));
@@ -376,9 +390,6 @@ public class AuthService implements IAuthService {
 
             userRepository.save(user);
 
-            // SEND UNLOCK EMAIL
-            // emailService.sendAccountUnlockedEmail(user);
-
             return false;
         }
 
@@ -458,6 +469,9 @@ public class AuthService implements IAuthService {
             auth.setRefreshToken((String) res.get("refresh_token"));
             auth.setExpiresIn((Integer) res.get("expires_in"));
 
+            // FIX: use existingByEmail (was referencing undefined `user`)
+            activityService.log(existingByEmail, ActivityType.LOGIN, "User logged in via Google", "SUCCESS", null);
+
             return ResponseEntity.ok(auth);
         }
 
@@ -510,11 +524,13 @@ public class AuthService implements IAuthService {
 
             System.out.println("USER SAVED SUCCESSFULLY");
 
+            activityService.log(user, ActivityType.LOGIN, "User registered via Google", "SUCCESS", null);
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(Map.of("message", "Account created successfully"));
 
         } catch (Exception e) {
-            System.out.println("❌ ERROR DURING GOOGLE SIGNUP:");
+            System.out.println("ERROR DURING GOOGLE SIGNUP:");
             e.printStackTrace();
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -562,5 +578,13 @@ public class AuthService implements IAuthService {
         }
 
         keycloakService.updatePassword(userId, newPassword);
+
+        // Log password change — look up User by keycloakId to get the entity
+        User user = userRepository.findByKeycloakId(userId)
+                .orElse(null);
+
+        if (user != null) {
+            activityService.log(user, ActivityType.PASSWORD_CHANGE, "User changed their password", "SUCCESS", null);
+        }
     }
 }
