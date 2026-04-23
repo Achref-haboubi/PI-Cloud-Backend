@@ -30,6 +30,26 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
       """)
   List<tn.esprit.peakwell.entities.Student> findDistinctStudentsByDietitianId(@Param("dietitianId") Long dietitianId);
 
+  /** Find UPCOMING consultations due in 24h that haven't been reminded yet */
+  @Query("""
+      SELECT c FROM Consultation c
+      WHERE c.status = 'UPCOMING'
+        AND c.scheduledAt BETWEEN :from AND :to
+        AND c.reminder24hSent = false
+      """)
+  List<Consultation> findPendingReminders24h(@Param("from") LocalDateTime from,
+                                             @Param("to") LocalDateTime to);
+
+  /** Find UPCOMING consultations due in 1h that haven't been reminded yet */
+  @Query("""
+      SELECT c FROM Consultation c
+      WHERE c.status = 'UPCOMING'
+        AND c.scheduledAt BETWEEN :from AND :to
+        AND c.reminder1hSent = false
+      """)
+  List<Consultation> findPendingReminders1h(@Param("from") LocalDateTime from,
+                                            @Param("to") LocalDateTime to);
+
   /** Check if the dietitian already has a confirmed (UPCOMING) consultation overlapping the given window */
   @Query("""
       SELECT COUNT(c) > 0 FROM Consultation c

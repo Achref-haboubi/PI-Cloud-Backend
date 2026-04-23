@@ -80,8 +80,10 @@ book_score = (
     (goal_progress_pct > 20).astype(float) * 0.5 +             # has made some progress → engaged
     (biometric_entries_last_30d > 3).astype(float) * 0.5 +     # still tracking
     (days_since_last_consultation < 20).astype(float) * 0.8 +  # recent visitor (boosted)
-    (avg_rating >= 3.5).astype(float) * 0.5 +                  # trusts the dietitian (>= not >)
+    (avg_rating >= 3.5).astype(float) * 0.5 +                  # trusts the dietitian
     (avg_mood < 3.5).astype(float) * 0.4 +                     # not feeling great → needs help
+    (goal_achieved == 1).astype(float) * -1.5 +                # healed → no longer needs to come
+    (goal_progress_pct > 85).astype(float) * -1.0 +            # near/at goal → less urgent
     np.random.normal(0, 1.2, N)                                 # reduced noise
 )
 

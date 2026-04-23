@@ -11,4 +11,5 @@ public interface IEmailService {
     void sendAccountLockedEmail(User user);
 
     void sendAccountUnlockedEmail(User user);
+
 }
