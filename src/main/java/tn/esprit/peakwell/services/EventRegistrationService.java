@@ -1,0 +1,135 @@
+package tn.esprit.peakwell.services;
+
+import org.springframework.stereotype.Service;
+import tn.esprit.peakwell.entities.EventRegistration;
+import tn.esprit.peakwell.entities.SportEvent;
+import tn.esprit.peakwell.enums.EventStatus;
+import tn.esprit.peakwell.enums.RegistrationStatus;
+import tn.esprit.peakwell.repositories.EventRegistrationRepository;
+import tn.esprit.peakwell.repositories.SportEventRepository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+public class EventRegistrationService {
+
+    private final EventRegistrationRepository registrationRepository;
+    private final SportEventRepository sportEventRepository;
+
+    public EventRegistrationService(EventRegistrationRepository registrationRepository,
+                                    SportEventRepository sportEventRepository) {
+        this.registrationRepository = registrationRepository;
+        this.sportEventRepository = sportEventRepository;
+    }
+
+    private void syncExpiredEventsAndRegistrations() {
+        sportEventRepository.updateExpiredEvents();
+        registrationRepository.updateConfirmedRegistrationsToAttended();
+    }
+
+    public List<EventRegistration> getAllRegistrations() {
+        syncExpiredEventsAndRegistrations();
+        return registrationRepository.findAll();
+    }
+
+    public EventRegistration getRegistrationById(Long id) {
+        syncExpiredEventsAndRegistrations();
+        return registrationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Registration not found with id: " + id));
+    }
+
+    public List<EventRegistration> getRegistrationsByStudentId(Long studentId) {
+        syncExpiredEventsAndRegistrations();
+        return registrationRepository.findByStudentId(studentId);
+    }
+
+    public List<EventRegistration> getRegistrationsByEventId(Long eventId) {
+        syncExpiredEventsAndRegistrations();
+        return registrationRepository.findByEventId(eventId);
+    }
+
+    public EventRegistration createRegistration(Long eventId, EventRegistration registration) {
+        syncExpiredEventsAndRegistrations();
+
+        SportEvent event = sportEventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found with id: " + eventId));
+
+        if (event.getEventDate() != null && event.getEventDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("This event is already finished. Registration is not allowed.");
+        }
+
+        event.updateStatusBasedOnCapacity();
+
+        if (event.getStatus() == EventStatus.CANCELLED || event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("This event is not available for registration.");
+        }
+
+        registrationRepository.findByStudentIdAndEventId(registration.getStudentId(), eventId)
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("This student is already registered for this event.");
+                });
+
+        registration.setEvent(event);
+        registration.setRegistrationDate(LocalDateTime.now());
+
+        if (event.getCurrentParticipants() < event.getMaxParticipants()) {
+            registration.setStatus(RegistrationStatus.CONFIRMED);
+            event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+        } else {
+            registration.setStatus(RegistrationStatus.WAITING);
+        }
+
+        event.updateStatusBasedOnCapacity();
+        sportEventRepository.save(event);
+
+        return registrationRepository.save(registration);
+    }
+
+    public EventRegistration updateRegistrationStatus(Long id, RegistrationStatus status) {
+        syncExpiredEventsAndRegistrations();
+
+        EventRegistration registration = getRegistrationById(id);
+        registration.setStatus(status);
+
+        return registrationRepository.save(registration);
+    }
+
+    public void deleteRegistration(Long id) {
+        syncExpiredEventsAndRegistrations();
+
+        EventRegistration registration = getRegistrationById(id);
+        SportEvent event = registration.getEvent();
+
+        if (registration.getStatus() == RegistrationStatus.ATTENDED) {
+            throw new IllegalArgumentException("Attended registrations cannot be cancelled.");
+        }
+
+        if (event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalArgumentException("Finished event registrations cannot be cancelled.");
+        }
+
+        boolean confirmedWasRemoved = false;
+
+        if (registration.getStatus() == RegistrationStatus.CONFIRMED && event.getCurrentParticipants() > 0) {
+            event.setCurrentParticipants(event.getCurrentParticipants() - 1);
+            confirmedWasRemoved = true;
+        }
+
+        registrationRepository.delete(registration);
+
+        if (confirmedWasRemoved) {
+            registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
+                    event.getId(),
+                    RegistrationStatus.WAITING
+            ).ifPresent(waitingRegistration -> {
+                waitingRegistration.setStatus(RegistrationStatus.CONFIRMED);
+                registrationRepository.save(waitingRegistration);
+                event.setCurrentParticipants(event.getCurrentParticipants() + 1);
+            });
+        }
+
+        event.updateStatusBasedOnCapacity();
+        sportEventRepository.save(event);
+    }
+}
