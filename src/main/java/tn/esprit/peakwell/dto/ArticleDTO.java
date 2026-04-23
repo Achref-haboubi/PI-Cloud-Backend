@@ -1,7 +1,6 @@
 package tn.esprit.peakwell.dto;
 
 import lombok.*;
-import tn.esprit.peakwell.entities.Article;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,14 +9,17 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ArticleDTO extends Article {
+public class ArticleDTO {
 
     private Long id;
     private String title;
     private String content;
     private String author;
+    private String ownerId;
     private String imageUrl;
     private String embedUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String aiSummary;
+    private List<String> aiTags;
 }

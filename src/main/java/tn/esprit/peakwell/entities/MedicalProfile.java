@@ -34,9 +34,9 @@ public class MedicalProfile {
 
   @ElementCollection
   @CollectionTable(
-    name = "profile_allergies",
-    joinColumns = @JoinColumn(name = "profile_id"),
-    foreignKey = @ForeignKey(name = "fk_allergies_profile")
+          name = "profile_allergies",
+          joinColumns = @JoinColumn(name = "profile_id"),
+          foreignKey = @ForeignKey(name = "fk_allergies_profile")
   )
   @OnDelete(action = OnDeleteAction.CASCADE)
   @Column(name = "allergy")
@@ -45,9 +45,9 @@ public class MedicalProfile {
 
   @ElementCollection
   @CollectionTable(
-    name = "profile_conditions",
-    joinColumns = @JoinColumn(name = "profile_id"),
-    foreignKey = @ForeignKey(name = "fk_conditions_profile")
+          name = "profile_conditions",
+          joinColumns = @JoinColumn(name = "profile_id"),
+          foreignKey = @ForeignKey(name = "fk_conditions_profile")
   )
   @OnDelete(action = OnDeleteAction.CASCADE)
   @Column(name = "condition_name")
@@ -56,9 +56,9 @@ public class MedicalProfile {
 
   @ElementCollection
   @CollectionTable(
-    name = "profile_medications",
-    joinColumns = @JoinColumn(name = "profile_id"),
-    foreignKey = @ForeignKey(name = "fk_medications_profile")
+          name = "profile_medications",
+          joinColumns = @JoinColumn(name = "profile_id"),
+          foreignKey = @ForeignKey(name = "fk_medications_profile")
   )
   @OnDelete(action = OnDeleteAction.CASCADE)
   @Column(name = "medication")

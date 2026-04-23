@@ -55,21 +55,21 @@ public class HealthGoalService {
     MedicalProfile profile = profileRepo.findById(PROFILE_ID).orElse(null);
 
     HealthGoal goal = HealthGoal.builder()
-      .profile(profile)
-      .metric(request.getMetric())
-      .direction(request.getDirection())
-      .startValue(request.getStartValue())
-      .targetValue(request.getTargetValue())
-      .unit(request.getUnit())
-      .deadline(LocalDate.parse(request.getDeadline()))
-      .build();
+            .profile(profile)
+            .metric(request.getMetric())
+            .direction(request.getDirection())
+            .startValue(request.getStartValue())
+            .targetValue(request.getTargetValue())
+            .unit(request.getUnit())
+            .deadline(LocalDate.parse(request.getDeadline()))
+            .build();
 
     // Generate milestones (custom or auto)
     List<GoalMilestone> milestones = (request.getCustomMilestones() != null && !request.getCustomMilestones().isEmpty())
-      ? request.getCustomMilestones().stream()
-          .map(cm -> GoalMilestone.builder().goal(goal).label(cm.getLabel()).targetValue(cm.getTargetValue()).reached(false).build())
-          .collect(Collectors.toList())
-      : generateMilestones(goal, request.getStartValue(), request.getTargetValue());
+            ? request.getCustomMilestones().stream()
+            .map(cm -> GoalMilestone.builder().goal(goal).label(cm.getLabel()).targetValue(cm.getTargetValue()).reached(false).build())
+            .collect(Collectors.toList())
+            : generateMilestones(goal, request.getStartValue(), request.getTargetValue());
     goal.setMilestones(milestones);
 
     HealthGoal saved = goalRepo.save(goal);
@@ -88,7 +88,7 @@ public class HealthGoalService {
   @Transactional
   public HealthGoalResponse deactivateGoal(Long id) {
     HealthGoal goal = goalRepo.findById(id)
-      .orElseThrow(() -> new RuntimeException("Goal not found"));
+            .orElseThrow(() -> new RuntimeException("Goal not found"));
     goal.setActive(false);
     return toResponse(goalRepo.save(goal));
   }
@@ -120,25 +120,25 @@ public class HealthGoalService {
   @Transactional
   public HealthGoalResponse createGoalForProfile(Long profileId, HealthGoalRequest request, String dietitianName) {
     MedicalProfile profile = profileRepo.findById(profileId)
-      .orElseThrow(() -> new RuntimeException("Profile not found"));
+            .orElseThrow(() -> new RuntimeException("Profile not found"));
 
     HealthGoal goal = HealthGoal.builder()
-      .profile(profile)
-      .metric(request.getMetric())
-      .direction(request.getDirection())
-      .startValue(request.getStartValue())
-      .targetValue(request.getTargetValue())
-      .unit(request.getUnit())
-      .deadline(LocalDate.parse(request.getDeadline()))
-      .assignedByDietitian(true)
-      .assignedByDietitianName(dietitianName)
-      .build();
+            .profile(profile)
+            .metric(request.getMetric())
+            .direction(request.getDirection())
+            .startValue(request.getStartValue())
+            .targetValue(request.getTargetValue())
+            .unit(request.getUnit())
+            .deadline(LocalDate.parse(request.getDeadline()))
+            .assignedByDietitian(true)
+            .assignedByDietitianName(dietitianName)
+            .build();
 
     List<GoalMilestone> milestones = (request.getCustomMilestones() != null && !request.getCustomMilestones().isEmpty())
-      ? request.getCustomMilestones().stream()
-          .map(cm -> GoalMilestone.builder().goal(goal).label(cm.getLabel()).targetValue(cm.getTargetValue()).reached(false).build())
-          .collect(Collectors.toList())
-      : generateMilestones(goal, request.getStartValue(), request.getTargetValue());
+            ? request.getCustomMilestones().stream()
+            .map(cm -> GoalMilestone.builder().goal(goal).label(cm.getLabel()).targetValue(cm.getTargetValue()).reached(false).build())
+            .collect(Collectors.toList())
+            : generateMilestones(goal, request.getStartValue(), request.getTargetValue());
     goal.setMilestones(milestones);
 
     HealthGoal saved = goalRepo.save(goal);
@@ -155,13 +155,13 @@ public class HealthGoalService {
   @Transactional
   public MilestoneResponse addMilestoneNote(Long milestoneId, String note) {
     GoalMilestone m = milestoneRepo.findById(milestoneId)
-      .orElseThrow(() -> new RuntimeException("Milestone not found"));
+            .orElseThrow(() -> new RuntimeException("Milestone not found"));
     m.setNote(note);
     milestoneRepo.save(m);
     return MilestoneResponse.builder()
-      .id(m.getId()).label(m.getLabel()).targetValue(m.getTargetValue())
-      .reached(m.getReached()).reachedDate(m.getReachedDate()).note(m.getNote())
-      .build();
+            .id(m.getId()).label(m.getLabel()).targetValue(m.getTargetValue())
+            .reached(m.getReached()).reachedDate(m.getReachedDate()).note(m.getNote())
+            .build();
   }
 
   public Map<String, Object> getChartData(Long goalId) {
@@ -172,16 +172,16 @@ public class HealthGoalService {
     DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d");
 
     List<Map<String, Object>> points = entries.stream()
-      .filter(e -> !e.getRecordedAt().toLocalDate().isBefore(goalStart))
-      .map(e -> {
-        Double val = getCurrentMetricValueFromEntry(goal.getMetric(), e);
-        Map<String, Object> point = new LinkedHashMap<>();
-        point.put("date", e.getRecordedAt().toLocalDate().format(fmt));
-        point.put("value", val);
-        return point;
-      })
-      .filter(p -> p.get("value") != null)
-      .collect(Collectors.toList());
+            .filter(e -> !e.getRecordedAt().toLocalDate().isBefore(goalStart))
+            .map(e -> {
+              Double val = getCurrentMetricValueFromEntry(goal.getMetric(), e);
+              Map<String, Object> point = new LinkedHashMap<>();
+              point.put("date", e.getRecordedAt().toLocalDate().format(fmt));
+              point.put("value", val);
+              return point;
+            })
+            .filter(p -> p.get("value") != null)
+            .collect(Collectors.toList());
 
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("points", points);
@@ -215,11 +215,11 @@ public class HealthGoalService {
     for (int i = 0; i < steps.length; i++) {
       double value = Math.round((start + diff * steps[i]) * 100.0) / 100.0;
       milestones.add(GoalMilestone.builder()
-        .goal(goal)
-        .label(labels[i])
-        .targetValue(value)
-        .reached(false)
-        .build());
+              .goal(goal)
+              .label(labels[i])
+              .targetValue(value)
+              .reached(false)
+              .build());
     }
     return milestones;
   }
@@ -269,7 +269,7 @@ public class HealthGoalService {
       if (Boolean.TRUE.equals(goal.getAssignedByDietitian()) && goal.getProfile() != null) {
         MedicalProfile p = goal.getProfile();
         String patientName = (p.getFirstName() != null ? p.getFirstName() : "")
-          + " " + (p.getLastName() != null ? p.getLastName() : "");
+                + " " + (p.getLastName() != null ? p.getLastName() : "");
         // Find the dietitian by name from the profile's assigned dietitian
         if (p.getAssignedDietitian() != null) {
           notificationService.notifyGoalAchieved(p.getAssignedDietitian(), patientName.trim(), goal.getMetric());
@@ -282,17 +282,17 @@ public class HealthGoalService {
 
   private Double getCurrentMetricValue(String metric) {
     return biometricRepo.findTopByOrderByRecordedAtDesc()
-      .map(entry -> {
-        switch (metric) {
-          case "weight":     return entry.getWeight();
-          case "bmi":        return entry.getBmi();
-          case "bodyFat":    return entry.getBodyFat();
-          case "muscleMass": return entry.getMuscleMass();
-          case "systolic":   return entry.getSystolic() != null ? entry.getSystolic().doubleValue() : null;
-          case "glucose":    return entry.getGlucose();
-          default:           return null;
-        }
-      }).orElse(null);
+            .map(entry -> {
+              switch (metric) {
+                case "weight":     return entry.getWeight();
+                case "bmi":        return entry.getBmi();
+                case "bodyFat":    return entry.getBodyFat();
+                case "muscleMass": return entry.getMuscleMass();
+                case "systolic":   return entry.getSystolic() != null ? entry.getSystolic().doubleValue() : null;
+                case "glucose":    return entry.getGlucose();
+                default:           return null;
+              }
+            }).orElse(null);
   }
 
   // ── Mapper ──────────────────────────────────────
@@ -301,31 +301,31 @@ public class HealthGoalService {
     Double currentValue = getCurrentMetricValue(goal.getMetric());
 
     return HealthGoalResponse.builder()
-      .id(goal.getId())
-      .metric(goal.getMetric())
-      .direction(goal.getDirection())
-      .startValue(goal.getStartValue())
-      .targetValue(goal.getTargetValue())
-      .unit(goal.getUnit())
-      .deadline(goal.getDeadline().toString())
-      .active(goal.getActive())
-      .achieved(goal.getAchieved())
-      .achievedDate(goal.getAchievedDate() != null ? goal.getAchievedDate().toString() : null)
-      .createdAt(goal.getCreatedAt() != null ? goal.getCreatedAt().toString() : null)
-      .paused(goal.getPaused())
-      .pauseReason(goal.getPauseReason())
-      .assignedByDietitian(goal.getAssignedByDietitian())
-      .assignedByDietitianName(goal.getAssignedByDietitianName())
-      .milestones(goal.getMilestones().stream()
-        .map(m -> MilestoneResponse.builder()
-          .id(m.getId())
-          .label(m.getLabel())
-          .targetValue(m.getTargetValue())
-          .reached(m.getReached())
-          .reachedDate(m.getReachedDate())
-          .note(m.getNote())
-          .build())
-        .collect(Collectors.toList()))
-      .build();
+            .id(goal.getId())
+            .metric(goal.getMetric())
+            .direction(goal.getDirection())
+            .startValue(goal.getStartValue())
+            .targetValue(goal.getTargetValue())
+            .unit(goal.getUnit())
+            .deadline(goal.getDeadline().toString())
+            .active(goal.getActive())
+            .achieved(goal.getAchieved())
+            .achievedDate(goal.getAchievedDate() != null ? goal.getAchievedDate().toString() : null)
+            .createdAt(goal.getCreatedAt() != null ? goal.getCreatedAt().toString() : null)
+            .paused(goal.getPaused())
+            .pauseReason(goal.getPauseReason())
+            .assignedByDietitian(goal.getAssignedByDietitian())
+            .assignedByDietitianName(goal.getAssignedByDietitianName())
+            .milestones(goal.getMilestones().stream()
+                    .map(m -> MilestoneResponse.builder()
+                            .id(m.getId())
+                            .label(m.getLabel())
+                            .targetValue(m.getTargetValue())
+                            .reached(m.getReached())
+                            .reachedDate(m.getReachedDate())
+                            .note(m.getNote())
+                            .build())
+                    .collect(Collectors.toList()))
+            .build();
   }
 }

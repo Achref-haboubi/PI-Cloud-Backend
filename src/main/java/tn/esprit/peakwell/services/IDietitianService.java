@@ -12,9 +12,9 @@ import java.util.Map;
 
 @Service
 public interface IDietitianService {
-  void createDietitian(User user, ProfileRequest request);
-  DietitianProfile getDietitianProfile(User user);
-  void updateDietitianProfile(User user,  UpdateProfileRequest request);
-  List<Map<String, Object>> getAllDietitians();
+    void createDietitian(User user, ProfileRequest request);
+    DietitianProfile getDietitianProfile(User user);
+    void updateDietitianProfile(User user,  UpdateProfileRequest request);
+    List<Map<String, Object>> getAllDietitians();
 
 }

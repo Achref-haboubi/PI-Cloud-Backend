@@ -14,23 +14,23 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Student {
 
-  @Id
-  Long id;
+    @Id
+    Long id;
 
-  @OneToOne
-  @JsonIgnore
-  @MapsId
-  @JoinColumn(name = "id")
-  User user;
+    @OneToOne
+    @JsonIgnore
+    @MapsId
+    @JoinColumn(name = "id")
+    User user;
 
 
-  Float height;
-  Float weight;
-  Float bmi;
-  String activityLevel;
-  String goal;
+    Float height;
+    Float weight;
+    Float bmi;
+    String activityLevel;
+    String goal;
 
-  @JsonIgnore
-  @OneToOne(mappedBy = "student")
-  MedicalProfile medicalProfile;
+    @JsonIgnore
+    @OneToOne(mappedBy = "student")
+    MedicalProfile medicalProfile;
 }

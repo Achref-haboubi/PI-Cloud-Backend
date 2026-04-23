@@ -59,9 +59,9 @@ public class ProductService {
         dto.setUnit(product.getUnit());
         dto.setImage(product.getImage());
         dto.setStockStatus(
-            product.getStockStatus() != null 
-            ? product.getStockStatus().name() 
-            : "IN_STOCK"
+                product.getStockStatus() != null
+                        ? product.getStockStatus().name()
+                        : "IN_STOCK"
         );
         dto.setMinStock(product.getMinStock());
 
@@ -122,8 +122,8 @@ public class ProductService {
         product.setCategory_Product(request.getCategory_Product());
         product.setStock(request.getStock());
         product.setUnit(request.getUnit());
-        
-        
+
+
         product.setMinStock(request.getMinStock());
 
         updateStockStatus(product);
@@ -143,8 +143,8 @@ public class ProductService {
 
         if (ingredientRepository.existsByProductId(id)) {
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Ce produit est utilisé dans un repas"
+                    HttpStatus.BAD_REQUEST,
+                    "Ce produit est utilisé dans un repas"
             );
         }
 
@@ -211,7 +211,7 @@ public class ProductService {
 
     public void attachImage(Long productId, String fileName) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Product not found"));
 
         product.setImage(fileName);
         productRepository.save(product);
@@ -219,30 +219,30 @@ public class ProductService {
 
     private void checkAndSendStockAlert(Product product) {
 
-        String email = "achrefhaboubi33@gmail.com"; 
+        String email = "achrefhaboubi33@gmail.com";
 
         if (product.getStock() == 0) {
 
             emailService.sendOutOfStockAlert(
-                email,
-                product.getName()
+                    email,
+                    product.getName()
             );
 
         } else if (product.getStock() <= product.getMinStock()) {
 
             emailService.sendLowStockAlert(
-                email,
-                product.getName(),
-                product.getStock()
+                    email,
+                    product.getName(),
+                    product.getStock()
             );
         }
     }
 
     private String getCurrentUserId() {
         JwtAuthenticationToken token =
-            (JwtAuthenticationToken) SecurityContextHolder
-                .getContext()
-                .getAuthentication();
+                (JwtAuthenticationToken) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
         return token.getToken().getSubject();
     }

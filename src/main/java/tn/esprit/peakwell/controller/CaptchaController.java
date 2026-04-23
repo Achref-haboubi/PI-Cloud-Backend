@@ -36,7 +36,7 @@ public class CaptchaController {
         }
     }
 
-    
+
     @PostMapping("/verify")
     public ResponseEntity<?> verify(@RequestBody CaptchaVerifyRequest request) {
 

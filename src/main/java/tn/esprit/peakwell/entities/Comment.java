@@ -24,6 +24,9 @@ public class Comment {
     @NotBlank(message = "Author is required")
     private String author;
 
+    @Column(name = "owner_id", nullable = true)
+    private String ownerId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -36,7 +39,7 @@ public class Comment {
     @JoinColumn(name = "parent_id")
     private Comment parentComment;
 
-    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> replies;
 
     @Column(nullable = false)

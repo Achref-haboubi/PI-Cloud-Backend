@@ -22,13 +22,13 @@ public class FavoriteService {
 
     public void toggleFavorite(Long mealId) {
 
-        String userId = getCurrentUserId(); 
+        String userId = getCurrentUserId();
 
         Meal meal = mealRepository.findById(mealId)
                 .orElseThrow(() -> new RuntimeException("Meal not found"));
 
         Optional<Favorite> existing =
-                favoriteRepository.findByMealIdAndUserId(mealId, userId); 
+                favoriteRepository.findByMealIdAndUserId(mealId, userId);
 
         if (existing.isPresent()) {
 
@@ -41,7 +41,7 @@ public class FavoriteService {
 
             Favorite fav = new Favorite();
             fav.setMeal(meal);
-            fav.setUserId(userId); 
+            fav.setUserId(userId);
 
             favoriteRepository.save(fav);
 
@@ -54,7 +54,7 @@ public class FavoriteService {
 
     public List<Long> getFavoriteMealIds() {
 
-        String userId = getCurrentUserId(); 
+        String userId = getCurrentUserId();
 
         return favoriteRepository.findByUserId(userId)
                 .stream()
@@ -64,8 +64,8 @@ public class FavoriteService {
 
     public String getCurrentUserId() {
         JwtAuthenticationToken token =
-            (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+                (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
 
-        return token.getToken().getSubject(); 
+        return token.getToken().getSubject();
     }
 }

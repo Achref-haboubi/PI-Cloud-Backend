@@ -40,7 +40,7 @@ public class MenuController {
         return "Semaine suivante générée";
     }
 
-    // Générer semaine personnalisée 
+    // Générer semaine personnalisée
     @PostMapping("/generate")
     public List<DailyMenuDTO> generateWeekFromDate(@RequestParam String startDate) {
         LocalDate start = LocalDate.parse(startDate);

@@ -12,7 +12,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductRequest {
-    
+
     @NotBlank
     private String name;
 

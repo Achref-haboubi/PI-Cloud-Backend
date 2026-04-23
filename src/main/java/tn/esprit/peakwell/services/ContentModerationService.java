@@ -30,14 +30,14 @@ public class ContentModerationService {
             "suicide", "death", "threat", "terror", "bomb",
 
             // French - Mild
-            "imbécile", "crétin", "stupide", "con", "nul",
+            "imbécile", "crétin", "stupide", "nul",
             "haine", "détestable", "agaçant", "emmerdant",
 
             // French - Severe
             "putain", "merde", "salope", "connard", "enculé", "bordel",
             "foutre", "chier", "bite", "couilles", "sexe", "cul",
             "raciste", "violence", "tuer", "mort", "suicide",
-            "pornographie", "porno", "nu",
+            "pornographie", "porno",
 
             // Spam/Scam
             "spam", "scam", "arnaque", "fake", "fraud", "escroc",
@@ -107,11 +107,11 @@ public class ContentModerationService {
         if (!result.isAllowed()) {
             // Send email notification to admin asynchronously
             emailService.sendInappropriateContentAlert(
-                content,
-                author,
-                articleId,
-                result.getCategory(),
-                result.getDetectedWords()
+                    content,
+                    author,
+                    articleId,
+                    result.getCategory(),
+                    result.getDetectedWords()
             );
         }
 

@@ -115,15 +115,15 @@ public class MedicalProfileService {
         if (p.getStudent() != null) {
             res.setStudentId(p.getStudent().getId());
             res.setStudentName(p.getStudent().getUser() != null
-                ? p.getStudent().getUser().getFirstName() + " " + p.getStudent().getUser().getLastName()
-                : null);
+                    ? p.getStudent().getUser().getFirstName() + " " + p.getStudent().getUser().getLastName()
+                    : null);
         }
         if (p.getAssignedDietitian() != null) {
             res.setDietitianId(p.getAssignedDietitian().getId());
             res.setDietitianSpecialization(p.getAssignedDietitian().getSpecialization());
             res.setDietitianName(p.getAssignedDietitian().getUser() != null
-                ? p.getAssignedDietitian().getUser().getFirstName() + " " + p.getAssignedDietitian().getUser().getLastName()
-                : null);
+                    ? p.getAssignedDietitian().getUser().getFirstName() + " " + p.getAssignedDietitian().getUser().getLastName()
+                    : null);
         }
         return res;
     }

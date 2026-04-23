@@ -59,8 +59,8 @@ public class MenuService {
     private void validateCategory(Meal meal, String expectedCategory) {
         if (!meal.getCategory().equalsIgnoreCase(expectedCategory)) {
             throw new RuntimeException(
-                "Invalid meal category: expected " + expectedCategory +
-                " but got " + meal.getCategory()
+                    "Invalid meal category: expected " + expectedCategory +
+                            " but got " + meal.getCategory()
             );
         }
     }
@@ -171,8 +171,8 @@ public class MenuService {
 
             DailyMenu menu = menus.get(i);
 
-            menu.setDate(dates.get(i));         
-            menu.setDisplayOrder(i);             
+            menu.setDate(dates.get(i));
+            menu.setDisplayOrder(i);
 
             menuRepository.save(menu);
         }
@@ -230,13 +230,13 @@ public class MenuService {
         dto.setTags(meal.getTags());
 
         dto.setIngredients(
-            meal.getIngredients()
-                .stream()
-                .map(ing -> new IngredientDTO(
-                    ing.getProduct().getName(),
-                    ing.getQuantity()
-                ))
-                .toList()
+                meal.getIngredients()
+                        .stream()
+                        .map(ing -> new IngredientDTO(
+                                ing.getProduct().getName(),
+                                ing.getQuantity()
+                        ))
+                        .toList()
         );
 
         dto.setImage(meal.getImage());

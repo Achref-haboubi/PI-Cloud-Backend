@@ -30,17 +30,17 @@ public class Meal {
     private String image;
 
     @OneToMany(
-        mappedBy = "meal",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true
+            mappedBy = "meal",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
     )
     @Size(min = 1, message = "Meal must have at least one ingredient")
     private List<Ingredient> ingredients = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
-        name = "meal_predicted_allergens",
-        joinColumns = @JoinColumn(name = "meal_id")
+            name = "meal_predicted_allergens",
+            joinColumns = @JoinColumn(name = "meal_id")
     )
     @Column(name = "predicted_allergens")
     private List<String> predictedAllergens;

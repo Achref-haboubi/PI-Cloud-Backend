@@ -2,6 +2,7 @@ package tn.esprit.peakwell.controller;
 
 import tn.esprit.peakwell.dto.ReactionDTO;
 import tn.esprit.peakwell.services.ReactionService;
+import tn.esprit.peakwell.services.CurrentUserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,9 +14,11 @@ import java.util.Map;
 @CrossOrigin("*")
 public class ReactionController {
     private final ReactionService reactionService;
+    private final CurrentUserService currentUserService;
 
-    public ReactionController(ReactionService reactionService) {
+    public ReactionController(ReactionService reactionService, CurrentUserService currentUserService) {
         this.reactionService = reactionService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping("/article/{articleId}")
@@ -23,8 +26,8 @@ public class ReactionController {
             @PathVariable Long articleId,
             @RequestBody Map<String, String> request) {
         String type = request.get("type");
-        String userIdentifier = request.get("userIdentifier");
-        reactionService.toggleReaction(articleId, type, userIdentifier);
+        String userId = currentUserService.getCurrentUserId();
+        reactionService.toggleReaction(articleId, type, userId);
         return ResponseEntity.ok().build();
     }
 

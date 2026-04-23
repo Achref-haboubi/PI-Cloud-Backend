@@ -10,6 +10,6 @@ public interface BiometricEntryRepository extends JpaRepository<BiometricEntry, 
     List<BiometricEntry> findAllByOrderByRecordedAtAsc();
     Optional<BiometricEntry> findTopByOrderByRecordedAtDesc();
     List<BiometricEntry> findByProfileIdOrderByRecordedAtAsc(Long profileId);
-  List<BiometricEntry> findAllByProfileIdOrderByRecordedAtAsc(Long profileId);
+    List<BiometricEntry> findAllByProfileIdOrderByRecordedAtAsc(Long profileId);
 
 }

@@ -43,7 +43,7 @@ public class MealService {
         this.dailyMenuRepository = dailyMenuRepository;
     }
 
-    // CREATE 
+    // CREATE
     public MealDTO createMeal(MealRequest request) {
 
         Meal meal = new Meal();
@@ -71,9 +71,9 @@ public class MealService {
 
                     return ing;
                 })
-                .collect(Collectors.toList()); 
+                .collect(Collectors.toList());
 
-        meal.setIngredients(new ArrayList<>(ingredients)); 
+        meal.setIngredients(new ArrayList<>(ingredients));
 
         calculateNutrition(meal);
 
@@ -154,23 +154,23 @@ public class MealService {
 
         // CHECK MENU
         if (dailyMenuRepository.existsByBreakfastId(id) ||
-            dailyMenuRepository.existsByLunchId(id) ||
-            dailyMenuRepository.existsByDinnerId(id)) {
+                dailyMenuRepository.existsByLunchId(id) ||
+                dailyMenuRepository.existsByDinnerId(id)) {
 
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Ce repas est utilisé dans un menu"
+                    HttpStatus.BAD_REQUEST,
+                    "Ce repas est utilisé dans un menu"
             );
         }
 
         // CHECK PLAN
         if (dailyPlanRepository.existsByBreakfastId(id) ||
-            dailyPlanRepository.existsByLunchId(id) ||
-            dailyPlanRepository.existsByDinnerId(id)) {
+                dailyPlanRepository.existsByLunchId(id) ||
+                dailyPlanRepository.existsByDinnerId(id)) {
 
             throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Ce repas est utilisé dans un plan"
+                    HttpStatus.BAD_REQUEST,
+                    "Ce repas est utilisé dans un plan"
             );
         }
 
@@ -240,10 +240,10 @@ public class MealService {
         dto.setTags(meal.getTags());
 
         dto.setIngredients(
-            meal.getIngredients()
-                .stream()
-                .map(this::mapIngredientToDTO)
-                .collect(Collectors.toList())
+                meal.getIngredients()
+                        .stream()
+                        .map(this::mapIngredientToDTO)
+                        .collect(Collectors.toList())
         );
 
         dto.setImage(meal.getImage());
@@ -278,14 +278,14 @@ public class MealService {
         return mealRepository.findByCategory(category)
                 .stream()
                 .map(this::mapMealToDTO)
-                .collect(Collectors.toList()); 
+                .collect(Collectors.toList());
     }
 
     public List<MealDTO> getMealsByTags(String tag) {
         return mealRepository.findByTags(tag)
                 .stream()
                 .map(this::mapMealToDTO)
-                .collect(Collectors.toList()); 
+                .collect(Collectors.toList());
     }
 
     private String buildMealText(Meal meal) {
@@ -326,7 +326,7 @@ public class MealService {
 
     private boolean hasRole(String role) {
         JwtAuthenticationToken token =
-            (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+                (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
 
         return token.getToken().getClaimAsStringList("realm_access")
                 .toString()

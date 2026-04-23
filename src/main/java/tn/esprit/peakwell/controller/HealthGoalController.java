@@ -69,15 +69,15 @@ public class HealthGoalController {
 
   @PostMapping("/profile/{profileId}")
   public ResponseEntity<HealthGoalResponse> createForProfile(
-      @PathVariable Long profileId,
-      @RequestBody HealthGoalRequest request,
-      @RequestParam(defaultValue = "Nutritionist") String dietitianName) {
+          @PathVariable Long profileId,
+          @RequestBody HealthGoalRequest request,
+          @RequestParam(defaultValue = "Nutritionist") String dietitianName) {
     return ResponseEntity.ok(goalService.createGoalForProfile(profileId, request, dietitianName));
   }
 
   @PatchMapping("/milestones/{milestoneId}/note")
   public ResponseEntity<MilestoneResponse> addNote(
-      @PathVariable Long milestoneId, @RequestBody Map<String, String> body) {
+          @PathVariable Long milestoneId, @RequestBody Map<String, String> body) {
     return ResponseEntity.ok(goalService.addMilestoneNote(milestoneId, body.get("note")));
   }
 

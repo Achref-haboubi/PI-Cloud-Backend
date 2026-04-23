@@ -9,6 +9,7 @@ import tn.esprit.peakwell.repositories.CommentVoteRepository;
 import tn.esprit.peakwell.dto.CommentDTO;
 import tn.esprit.peakwell.dto.ModerationResult;
 import tn.esprit.peakwell.exception.InappropriateContentException;
+import tn.esprit.peakwell.exception.UnauthorizedException;
 
 import org.springframework.stereotype.Service;
 
@@ -24,24 +25,27 @@ public class CommentService {
     private final ArticleRepository articleRepository;
     private final CommentVoteRepository commentVoteRepository;
     private final ContentModerationService contentModerationService;
+    private final CurrentUserService currentUserService;
 
     public CommentService(CommentRepository commentRepository,
                           ArticleRepository articleRepository,
                           CommentVoteRepository commentVoteRepository,
-                          ContentModerationService contentModerationService) {
+                          ContentModerationService contentModerationService,
+                          CurrentUserService currentUserService) {
         this.commentRepository = commentRepository;
         this.articleRepository = articleRepository;
         this.commentVoteRepository = commentVoteRepository;
         this.contentModerationService = contentModerationService;
+        this.currentUserService = currentUserService;
     }
 
     // ✅ ADD COMMENT
     public Comment addComment(Long articleId, CommentDTO commentDTO) {
         // Check content FIRST and send email notification
         ModerationResult moderation = contentModerationService.checkContentAndNotify(
-            commentDTO.getContent(),
-            commentDTO.getAuthor(),
-            articleId.toString()
+                commentDTO.getContent(),
+                commentDTO.getAuthor(),
+                articleId.toString()
         );
 
         if (!moderation.isAllowed()) {
@@ -58,6 +62,7 @@ public class CommentService {
         Comment comment = new Comment();
         comment.setContent(commentDTO.getContent());
         comment.setAuthor(commentDTO.getAuthor());
+        comment.setOwnerId(currentUserService.getCurrentUserId());
         comment.setArticle(article);
         comment.setUpvotes(0);
         comment.setDownvotes(0);
@@ -78,9 +83,9 @@ public class CommentService {
     public CommentDTO addReply(Long articleId, Long parentCommentId, CommentDTO dto) {
         // Check content FIRST and send email notification
         ModerationResult moderation = contentModerationService.checkContentAndNotify(
-            dto.getContent(),
-            dto.getAuthor(),
-            articleId.toString()
+                dto.getContent(),
+                dto.getAuthor(),
+                articleId.toString()
         );
 
         if (!moderation.isAllowed()) {
@@ -100,6 +105,7 @@ public class CommentService {
         Comment reply = new Comment();
         reply.setContent(dto.getContent());
         reply.setAuthor(dto.getAuthor());
+        reply.setOwnerId(currentUserService.getCurrentUserId());
         reply.setArticle(article);
         reply.setParentComment(parent);
         reply.setUpvotes(0);
@@ -185,6 +191,14 @@ public class CommentService {
     public void deleteComment(Long id) {
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Comment not found with id: " + id));
+
+        // Check ownership
+        String currentUserId = currentUserService.getCurrentUserId();
+        if (currentUserId != null && comment.getOwnerId() != null
+                && !comment.getOwnerId().equals(currentUserId)) {
+            throw new UnauthorizedException("You can only delete your own comments");
+        }
+
         commentRepository.delete(comment);
     }
 
@@ -196,6 +210,7 @@ public class CommentService {
         dto.setId(comment.getId());
         dto.setContent(comment.getContent());
         dto.setAuthor(comment.getAuthor());
+        dto.setOwnerId(comment.getOwnerId());
         dto.setCreatedAt(comment.getCreatedAt());
         dto.setArticleId(comment.getArticle().getId());
 

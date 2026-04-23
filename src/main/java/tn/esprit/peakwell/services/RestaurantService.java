@@ -12,7 +12,7 @@ public class RestaurantService implements IRestaurantService {
     public void createRestaurant(User user) {
 
         if (user.getRestaurant() != null) {
-            return; 
+            return;
         }
 
         Restaurant restaurant = new Restaurant();
@@ -20,5 +20,5 @@ public class RestaurantService implements IRestaurantService {
 
         user.setRestaurant(restaurant);
     }
-    
+
 }

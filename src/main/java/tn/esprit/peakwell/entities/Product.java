@@ -44,9 +44,9 @@ public class Product {
     @Enumerated(EnumType.STRING)
     private UnitType unit;
 
-    private String image; 
+    private String image;
 
-    private double minStock; 
+    private double minStock;
 
     @Enumerated(EnumType.STRING)
     private StockStatus stockStatus;

@@ -11,9 +11,9 @@ import tn.esprit.peakwell.entities.User;
 public interface IStudentService {
 
 
-  void createStudent(User user, ProfileRequest request);
-  StudentProfile getStudentProfile(User user);
-  void updateStudentProfile(User user,  UpdateProfileRequest request);
+    void createStudent(User user, ProfileRequest request);
+    StudentProfile getStudentProfile(User user);
+    void updateStudentProfile(User user,  UpdateProfileRequest request);
 
 
 }

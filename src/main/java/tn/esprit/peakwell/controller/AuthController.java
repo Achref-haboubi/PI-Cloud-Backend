@@ -31,32 +31,32 @@ import java.util.Map;
 @Controller
 @RequestMapping("/auth")
 public class AuthController {
-  @Autowired
-  IAuthService authService;
+    @Autowired
+    IAuthService authService;
 
-  @PostMapping("/login")
-  public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-    return authService.login(request);
-  }
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
 
 
-  @PostMapping("/register")
-  public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-    return authService.register(request);
-  }
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        return authService.register(request);
+    }
 
-  @PostMapping("/forgot-password")
-  public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
 
-    authService.forgotPassword(request.getEmail());
+        authService.forgotPassword(request.getEmail());
 
-    Map<String, Object> response = Map.of(
-            "status", HttpStatus.OK.value(),
-            "message", "Reset password email sent successfully"
-    );
+        Map<String, Object> response = Map.of(
+                "status", HttpStatus.OK.value(),
+                "message", "Reset password email sent successfully"
+        );
 
-    return ResponseEntity.status(HttpStatus.OK).body(response);
-  }
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 
     // face detection login
     @PostMapping("/face-login")
@@ -109,6 +109,5 @@ public class AuthController {
     }
 
 }
-
 
 

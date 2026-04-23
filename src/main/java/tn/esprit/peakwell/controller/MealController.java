@@ -68,8 +68,8 @@ public class MealController {
 
     @DeleteMapping("/{id}")
     public void deleteMeal(@PathVariable Long id) {
-            mealService.deleteMeal(id);
-        }
+        mealService.deleteMeal(id);
+    }
 
     @PostMapping(value = "/with-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MealDTO createMealWithImage(

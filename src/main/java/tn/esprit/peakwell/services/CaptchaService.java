@@ -43,7 +43,7 @@ public class CaptchaService implements ICaptchaService {
 
         if (categories.size() < 2) {
             throw new RuntimeException(
-                "Need at least 2 sub-folders inside Cloudinary folder: " + captchaFolder
+                    "Need at least 2 sub-folders inside Cloudinary folder: " + captchaFolder
             );
         }
 
@@ -77,13 +77,13 @@ public class CaptchaService implements ICaptchaService {
         // Sign: base64(target|0,2,5,7|timestamp).HMAC
         String payload = target
                 + "|" + correctIndices.stream()
-                            .map(String::valueOf)
-                            .collect(Collectors.joining(","))
+                .map(String::valueOf)
+                .collect(Collectors.joining(","))
                 + "|" + System.currentTimeMillis();
 
         String challengeToken =
                 Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
-                + "." + hmac(payload);
+                        + "." + hmac(payload);
 
         return new CaptchaChallenge(challengeToken, target, grid);
     }

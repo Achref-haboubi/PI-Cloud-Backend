@@ -96,8 +96,8 @@ public class MedicalProfileController {
             m.put("dietitianName", p.getDietitianName());
             m.put("complete",      p.isComplete());
             String imageUrl = (p.getStudentId() != null)
-                ? userRepository.findById(p.getStudentId()).map(User::getImgUrl).orElse(null)
-                : null;
+                    ? userRepository.findById(p.getStudentId()).map(User::getImgUrl).orElse(null)
+                    : null;
             m.put("imageUrl", imageUrl);
             List<BiometricResponse> bios = biometricService.getByProfileId(p.getId());
             if (!bios.isEmpty()) {

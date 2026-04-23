@@ -27,6 +27,9 @@ public class Article {
     @NotBlank(message = "Author is required")
     private String author;
 
+    @Column(name = "owner_id", nullable = true)
+    private String ownerId;
+
     @Column(nullable = true)
     private String imageUrl;
 
@@ -36,20 +39,26 @@ public class Article {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Comment> comments;
 
-    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Reaction> reactions;
 
-    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Attachment> attachments;
 
     @Column(nullable = true)
     private String embedUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiSummary;
+
+    @Column(length = 500)
+    private String aiTags;
 
     @PrePersist
     protected void onCreate() {

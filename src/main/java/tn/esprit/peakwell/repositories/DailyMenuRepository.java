@@ -14,5 +14,5 @@ public interface DailyMenuRepository extends JpaRepository<DailyMenu, Long>{
     boolean existsByBreakfastId(Long id);
     boolean existsByLunchId(Long id);
     boolean existsByDinnerId(Long id);
-    
+
 }

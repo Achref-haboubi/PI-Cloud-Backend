@@ -50,7 +50,7 @@ public class User {
     Role role;
 
     @Column(nullable = false)
-    boolean enabled = true; 
+    boolean enabled = true;
 
     @Column(nullable = false)
     boolean profileCompleted = false;

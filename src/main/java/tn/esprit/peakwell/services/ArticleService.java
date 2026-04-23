@@ -1,8 +1,10 @@
 package tn.esprit.peakwell.services;
 
+import org.springframework.scheduling.annotation.Async;
 import tn.esprit.peakwell.entities.Article;
 import tn.esprit.peakwell.repositories.ArticleRepository;
 import tn.esprit.peakwell.dto.ArticleDTO;
+import tn.esprit.peakwell.exception.UnauthorizedException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -28,14 +30,34 @@ import java.util.stream.Collectors;
 public class ArticleService {
 
     private final ArticleRepository articleRepository;
+    private final CurrentUserService currentUserService;
     private final String UPLOAD_DIR = "uploads/articles";
+    private final GroqService groqService;
 
-    public ArticleService(ArticleRepository articleRepository) {
+    public ArticleService(ArticleRepository articleRepository, CurrentUserService currentUserService, GroqService groqService) {
         this.articleRepository = articleRepository;
+        this.currentUserService = currentUserService;
+        this.groqService = groqService;
     }
 
     // ✅ CREATE
     public Article createArticle(Article article) {
+        // Set owner from current authenticated user
+        String currentUserId = currentUserService.getCurrentUserId();
+        article.setOwnerId(currentUserId);
+
+
+        // If author field is empty, set from keycloak username
+        if (article.getAuthor() == null || article.getAuthor().isBlank()) {
+            article.setAuthor(currentUserService.getCurrentUsername());
+        }
+
+        // 1️⃣ SAVE FIRST
+        Article savedArticle = articleRepository.save(article);
+
+        // 2️⃣ TRIGGER AI GENERATION (ASYNC)
+        generateAIContentAsync(savedArticle);
+
         return articleRepository.save(article);
     }
 
@@ -67,6 +89,18 @@ public class ArticleService {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Article not found: " + id));
 
+        // Check ownership
+        String currentUserId = currentUserService.getCurrentUserId();
+        if (currentUserId != null && article.getOwnerId() != null
+                && !article.getOwnerId().equals(currentUserId)) {
+            throw new UnauthorizedException("You can only edit your own articles");
+        }
+
+        // 🔥 DEFINE THIS FIRST (FIX)
+        boolean contentChanged =
+                (articleDetails.getTitle() != null && !articleDetails.getTitle().equals(article.getTitle())) ||
+                        (articleDetails.getContent() != null && !articleDetails.getContent().equals(article.getContent()));
+
         article.setTitle(articleDetails.getTitle());
         article.setContent(articleDetails.getContent());
         article.setAuthor(articleDetails.getAuthor());
@@ -78,6 +112,14 @@ public class ArticleService {
             article.setEmbedUrl(articleDetails.getEmbedUrl());
         }
 
+        // 1️⃣ SAVE FIRST
+        Article savedArticle = articleRepository.save(article);
+
+        // 2️⃣ REGENERATE AI ONLY IF CONTENT CHANGED
+        if (contentChanged) {
+            generateAIContentAsync(savedArticle);
+        }
+
         return articleRepository.save(article);
     }
 
@@ -85,6 +127,14 @@ public class ArticleService {
     public void deleteArticle(Long id) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Article not found: " + id));
+
+        // Check ownership
+        String currentUserId = currentUserService.getCurrentUserId();
+        if (currentUserId != null && article.getOwnerId() != null
+                && !article.getOwnerId().equals(currentUserId)) {
+            throw new UnauthorizedException("You can only delete your own articles");
+        }
+
         articleRepository.delete(article);
     }
 
@@ -196,24 +246,53 @@ public class ArticleService {
 
     // ✅ MAPPER Article → DTO
     public ArticleDTO mapArticleToDTO(Article article) {
-        return new ArticleDTO(
-                article.getId(),
-                article.getTitle(),
-                article.getContent(),
-                article.getAuthor(),
-                article.getImageUrl(),
-                article.getEmbedUrl(),
-                article.getCreatedAt(),
-                article.getUpdatedAt()
-        );
+
+        ArticleDTO dto = new ArticleDTO();
+
+        dto.setId(article.getId());
+        dto.setTitle(article.getTitle());
+        dto.setContent(article.getContent());
+        dto.setAuthor(article.getAuthor());
+        dto.setOwnerId(article.getOwnerId());
+        dto.setImageUrl(article.getImageUrl());
+        dto.setEmbedUrl(article.getEmbedUrl());
+        dto.setCreatedAt(article.getCreatedAt());
+        dto.setUpdatedAt(article.getUpdatedAt());
+
+        // ✅ AI fields
+        dto.setAiSummary(article.getAiSummary());
+
+        if (article.getAiTags() != null && !article.getAiTags().isEmpty()) {
+            dto.setAiTags(
+                    List.of(article.getAiTags().split(","))
+                            .stream()
+                            .map(String::trim)
+                            .toList()
+            );
+        } else {
+            dto.setAiTags(List.of());
+        }
+
+        return dto;
     }
 
     // ✅ SAVE IMAGE
     public String saveImage(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Image file cannot be empty");
+        }
+
+        // Validate file is actually an image
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("File must be an image. Received: " + contentType);
+        }
+
         Path uploadsPath = Paths.get(UPLOAD_DIR);
         if (!Files.exists(uploadsPath)) {
             Files.createDirectories(uploadsPath);
         }
+
         String originalFileName = file.getOriginalFilename();
         String fileExtension = originalFileName != null
                 ? originalFileName.substring(originalFileName.lastIndexOf("."))
@@ -221,22 +300,77 @@ public class ArticleService {
         String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
         Path filePath = uploadsPath.resolve(uniqueFileName);
         Files.write(filePath, file.getBytes());
+
+        System.out.println("Image saved successfully: " + uniqueFileName);
         return uniqueFileName;
     }
 
     // ✅ DELETE IMAGE
     public void deleteImage(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            System.out.println("Cannot delete image: filename is empty");
+            return;
+        }
+
         try {
             Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
-            Files.deleteIfExists(filePath);
+            if (Files.deleteIfExists(filePath)) {
+                System.out.println("Image deleted successfully: " + filename);
+            } else {
+                System.out.println("Image file not found: " + filename);
+            }
         } catch (IOException e) {
-            System.err.println("Error deleting image: " + e.getMessage());
+            System.err.println("Error deleting image " + filename + ": " + e.getMessage());
         }
     }
 
     // ✅ GET IMAGE AS RESOURCE
     public Resource getImageAsResource(String filename) throws IOException {
+        if (filename == null || filename.isEmpty()) {
+            throw new IllegalArgumentException("Filename cannot be empty");
+        }
+
+        // Prevent directory traversal attacks
+        if (filename.contains("..") || filename.contains("/")) {
+            throw new IllegalArgumentException("Invalid filename");
+        }
+
         Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
-        return new UrlResource(filePath.toUri());
+        Resource resource = new UrlResource(filePath.toUri());
+
+        if (!resource.exists()) {
+            System.err.println("Image resource not found: " + filename);
+            throw new IOException("Image not found: " + filename);
+        }
+
+        return resource;
+    }
+
+    @Async
+    public void generateAIContentAsync(Article article) {
+
+        try {
+            String summary = groqService.generateSummary(
+                    article.getTitle(),
+                    article.getContent()
+            );
+
+            String tags = groqService.generateTags(
+                    article.getTitle(),
+                    article.getContent()
+            );
+
+            Article dbArticle = articleRepository.findById(article.getId())
+                    .orElse(null);
+
+            if (dbArticle != null) {
+                dbArticle.setAiSummary(summary);
+                dbArticle.setAiTags(tags);
+                articleRepository.save(dbArticle);
+            }
+
+        } catch (Exception e) {
+            System.out.println("AI generation failed: " + e.getMessage());
+        }
     }
 }

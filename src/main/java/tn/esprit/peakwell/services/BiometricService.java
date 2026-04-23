@@ -51,9 +51,9 @@ public class BiometricService {
         double weightDiff = Math.abs(request.getWeight() - prev.getWeight());
         if (weightDiff > maxWeightChange) {
             throw new IllegalArgumentException(String.format(
-                "Weight change of %.1f kg over %d day(s) is not realistic. " +
-                "Your last recorded weight was %.1f kg. Maximum expected change: %.1f kg (800 g/day).",
-                weightDiff, days, prev.getWeight(), maxWeightChange));
+                    "Weight change of %.1f kg over %d day(s) is not realistic. " +
+                            "Your last recorded weight was %.1f kg. Maximum expected change: %.1f kg (800 g/day).",
+                    weightDiff, days, prev.getWeight(), maxWeightChange));
         }
 
         if (request.getBodyFat() != null && prev.getBodyFat() != null) {
@@ -61,9 +61,9 @@ public class BiometricService {
             double fatDiff = Math.abs(request.getBodyFat() - prev.getBodyFat());
             if (fatDiff > maxFatChange) {
                 throw new IllegalArgumentException(String.format(
-                    "Body fat change of %.1f%% over %d day(s) is not realistic. " +
-                    "Your last recorded value was %.1f%%. Maximum expected change: %.1f%%.",
-                    fatDiff, days, prev.getBodyFat(), maxFatChange));
+                        "Body fat change of %.1f%% over %d day(s) is not realistic. " +
+                                "Your last recorded value was %.1f%%. Maximum expected change: %.1f%%.",
+                        fatDiff, days, prev.getBodyFat(), maxFatChange));
             }
         }
 
@@ -72,9 +72,9 @@ public class BiometricService {
             double muscleDiff = Math.abs(request.getMuscleMass() - prev.getMuscleMass());
             if (muscleDiff > maxMuscleChange) {
                 throw new IllegalArgumentException(String.format(
-                    "Muscle mass change of %.1f kg over %d day(s) is not realistic. " +
-                    "Your last recorded value was %.1f kg. Maximum expected change: %.1f kg.",
-                    muscleDiff, days, prev.getMuscleMass(), maxMuscleChange));
+                        "Muscle mass change of %.1f kg over %d day(s) is not realistic. " +
+                                "Your last recorded value was %.1f kg. Maximum expected change: %.1f kg.",
+                        muscleDiff, days, prev.getMuscleMass(), maxMuscleChange));
             }
         }
 
@@ -83,9 +83,9 @@ public class BiometricService {
             int maxSystolic = (int)(days * 10);
             if (systolicDiff > maxSystolic) {
                 throw new IllegalArgumentException(String.format(
-                    "Systolic BP change of %d mmHg over %d day(s) is not realistic. " +
-                    "Your last recorded value was %d mmHg. Maximum expected change: %d mmHg.",
-                    systolicDiff, days, prev.getSystolic(), maxSystolic));
+                        "Systolic BP change of %d mmHg over %d day(s) is not realistic. " +
+                                "Your last recorded value was %d mmHg. Maximum expected change: %d mmHg.",
+                        systolicDiff, days, prev.getSystolic(), maxSystolic));
             }
         }
 
@@ -94,9 +94,9 @@ public class BiometricService {
             int maxDiastolic = (int)(days * 7);
             if (diastolicDiff > maxDiastolic) {
                 throw new IllegalArgumentException(String.format(
-                    "Diastolic BP change of %d mmHg over %d day(s) is not realistic. " +
-                    "Your last recorded value was %d mmHg. Maximum expected change: %d mmHg.",
-                    diastolicDiff, days, prev.getDiastolic(), maxDiastolic));
+                        "Diastolic BP change of %d mmHg over %d day(s) is not realistic. " +
+                                "Your last recorded value was %d mmHg. Maximum expected change: %d mmHg.",
+                        diastolicDiff, days, prev.getDiastolic(), maxDiastolic));
             }
         }
 
@@ -105,9 +105,9 @@ public class BiometricService {
             double glucoseDiff = Math.abs(request.getGlucose() - prev.getGlucose());
             if (glucoseDiff > maxGlucose) {
                 throw new IllegalArgumentException(String.format(
-                    "Glucose change of %.1f mg/dL over %d day(s) is not realistic. " +
-                    "Your last recorded value was %.1f mg/dL. Maximum expected change: %.1f mg/dL.",
-                    glucoseDiff, days, prev.getGlucose(), maxGlucose));
+                        "Glucose change of %.1f mg/dL over %d day(s) is not realistic. " +
+                                "Your last recorded value was %.1f mg/dL. Maximum expected change: %.1f mg/dL.",
+                        glucoseDiff, days, prev.getGlucose(), maxGlucose));
             }
         }
     }

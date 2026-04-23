@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class DailyMenu {
 
-     @Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -28,5 +28,5 @@ public class DailyMenu {
     private Meal dinner;
 
     private Integer displayOrder;
-    
+
 }

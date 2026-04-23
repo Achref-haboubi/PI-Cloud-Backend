@@ -15,5 +15,5 @@ public class DailyMenuRequest {
 
     private LocalDate date;
     private Long id;
-    
+
 }
