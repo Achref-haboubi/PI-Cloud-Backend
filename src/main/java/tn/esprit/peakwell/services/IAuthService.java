@@ -11,20 +11,15 @@ import org.springframework.security.core.Authentication;
 public interface IAuthService {
 
     ResponseEntity<?> login(LoginRequest request);
-
     ResponseEntity<?> register(RegisterRequest request);
+    ResponseEntity<?> faceLogin(FaceLoginRequest request);
+
+    String generateGoogleAuthUrl();
+    ResponseEntity<?> handleGoogleLogin(String code, String flow);
+    ResponseEntity<?> completeGoogleSignup(String accessToken, Role role);
 
     String getCurrentUserId();
 
     void forgotPassword(String email);
-
     void changePassword(Authentication authentication, String oldPassword, String newPassword);
-
-    String generateGoogleAuthUrl();
-
-    ResponseEntity<?> handleGoogleLogin(String code, String flow);
-
-    ResponseEntity<?> completeGoogleSignup(String accessToken, Role role);
-
-    ResponseEntity<?> faceLogin(FaceLoginRequest request);
 }

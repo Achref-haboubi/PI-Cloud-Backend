@@ -13,7 +13,6 @@ import tn.esprit.peakwell.dto.UpdateProfileRequest;
 import tn.esprit.peakwell.dto.UserGrowthDTO;
 import tn.esprit.peakwell.dto.UserProfile;
 import tn.esprit.peakwell.dto.UserStatsDTO;
-
 import tn.esprit.peakwell.entities.User;
 
 public interface IUserService {

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -17,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class User {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,6 +63,9 @@ public class User {
     @Temporal(TemporalType.TIMESTAMP)
     Date lockTime;
 
+    LocalDateTime lastLoginAt;
+    LocalDateTime lastSeenAt;
+    
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore
     Student student;

@@ -197,30 +197,30 @@ public class KeycloakService implements IKeycloakService {
 
 
     @Override
-    public boolean verifyOldPassword(String username, String oldPassword) {
+public boolean verifyOldPassword(String username, String oldPassword) {
 
-        if (username == null || oldPassword == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials input");
-        }
+    if (username == null || oldPassword == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials input");
+    }
 
-        try {
-            Keycloak keycloakClient = KeycloakBuilder.builder()
-                    .serverUrl(serverUrl) //  from config
-                    .realm(realm)
-                    .clientId(clientId)
-                    .clientSecret(clientSecret) //  REQUIRED (your client is confidential)
-                    .grantType(OAuth2Constants.PASSWORD)
-                    .username(username) //  username NOT email
-                    .password(oldPassword)
-                    .build();
+    try {
+        Keycloak keycloakClient = KeycloakBuilder.builder()
+                .serverUrl(serverUrl) //  from config
+                .realm(realm)
+                .clientId(clientId)
+                .clientSecret(clientSecret) //  REQUIRED (your client is confidential)
+                .grantType(OAuth2Constants.PASSWORD)
+                .username(username) //  username NOT email
+                .password(oldPassword)
+                .build();
 
-            keycloakClient.tokenManager().getAccessToken();
+        keycloakClient.tokenManager().getAccessToken();
 
-            return true;
+        return true;
 
-        } catch (Exception e) {
-            return false;
-        }}
+    } catch (Exception e) {
+        return false;
+    }}
 
     @Override
     public void updatePassword(String userId, String newPassword) {

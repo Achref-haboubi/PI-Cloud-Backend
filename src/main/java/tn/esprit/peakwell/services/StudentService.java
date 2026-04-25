@@ -39,53 +39,53 @@ public class StudentService implements IStudentService {
     }
 
     @Override
-    public void updateStudentProfile(User user, UpdateProfileRequest request) {
+public void updateStudentProfile(User user, UpdateProfileRequest request) {
 
-        Student student = user.getStudent();
+    Student student = user.getStudent();
 
-        if (student == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Student profile not found");
-        }
-
-        // 🔹 Validation
-        if (request.getHeight() != null && request.getHeight() <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Invalid height");
-        }
-
-        if (request.getWeight() != null && request.getWeight() <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Invalid weight");
-        }
-
-        //  Update fields
-        if (request.getHeight() != null) {
-            student.setHeight(request.getHeight());
-        }
-
-        if (request.getWeight() != null) {
-            student.setWeight(request.getWeight());
-        }
-
-        if (request.getActivityLevel() != null) {
-            student.setActivityLevel(request.getActivityLevel());
-        }
-
-        if (request.getGoal() != null) {
-            student.setGoal(request.getGoal());
-        }
-
-
-        // Recalculate BMI safely
-        if (student.getHeight() != null && student.getWeight() != null) {
-
-            float heightMeters = student.getHeight() / 100;
-            float bmi = student.getWeight() / (heightMeters * heightMeters);
-
-            student.setBmi(Math.round(bmi * 100) / 100f);
-        }
+    if (student == null) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Student profile not found");
     }
+
+    //  Validation
+    if (request.getHeight() != null && request.getHeight() <= 0) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Invalid height");
+    }
+
+    if (request.getWeight() != null && request.getWeight() <= 0) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Invalid weight");
+    }
+
+    //  Update fields
+    if (request.getHeight() != null) {
+        student.setHeight(request.getHeight());
+    }
+
+    if (request.getWeight() != null) {
+        student.setWeight(request.getWeight());
+    }
+
+    if (request.getActivityLevel() != null) {
+        student.setActivityLevel(request.getActivityLevel());
+    }
+
+    if (request.getGoal() != null) {
+        student.setGoal(request.getGoal());
+    }
+
+
+    // Recalculate BMI safely
+    if (student.getHeight() != null && student.getWeight() != null) {
+
+        float heightMeters = student.getHeight() / 100;
+        float bmi = student.getWeight() / (heightMeters * heightMeters);
+
+        student.setBmi(Math.round(bmi * 100) / 100f);
+    }
+}
 
     @Override
     public StudentProfile getStudentProfile(User user) {

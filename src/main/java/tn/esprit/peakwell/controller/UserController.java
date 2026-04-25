@@ -36,6 +36,16 @@ public class UserController {
     private final UserRepository userRepository;
     private final UserService userService;
 
+    @PostMapping("/complete-profile")
+    public ResponseEntity<?> completeProfile(@ModelAttribute ProfileRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
+
+        User user = userService.completeProfile(request, image, certificate);
+
+        CurrentUserDTO dto = mapToDTO(user);
+        return ResponseEntity.ok(dto);
+    }
 
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
@@ -45,15 +55,15 @@ public class UserController {
         User user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        //  Build DTO
+        // Build DTO
         CurrentUserDTO dto = mapToDTO(user);
 
-        //  allow if profile not completed
+        // allow if profile not completed
         if (!dto.isProfileCompleted()) {
             return ResponseEntity.ok(dto);
         }
 
-        //  block if completed but not enabled
+        // block if completed but not enabled
         if (!user.isEnabled()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Account pending approval"));
@@ -88,15 +98,12 @@ public class UserController {
     public ResponseEntity<UserProfile> updateProfile(
             @ModelAttribute UpdateProfileRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image,
-            @RequestPart(value = "certificate", required = false) MultipartFile certificate
-    ) {
+            @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
-        UserProfile updatedProfile =
-                userService.updateProfile(request, image, certificate);
+        UserProfile updatedProfile = userService.updateProfile(request, image, certificate);
 
         return ResponseEntity.ok(updatedProfile);
     }
-
 
     private CurrentUserDTO mapToDTO(User user) {
 
@@ -112,8 +119,7 @@ public class UserController {
 
                 user.getPhoneNumber(),
                 user.getImgUrl(),
-                user.getAddress()
-        );
+                user.getAddress());
     }
 
     @PatchMapping("/{id}/toggle-status")
@@ -122,8 +128,7 @@ public class UserController {
         userService.toggleStatus(id, request);
 
         return ResponseEntity.ok(
-                Map.of("message", "User status updated successfully")
-        );
+                Map.of("message", "User status updated successfully"));
     }
 
     @GetMapping("/all")
@@ -155,14 +160,7 @@ public class UserController {
     public FailedAttemptsStatsDTO getFailedAttempts() {
         return userService.getFailedAttemptsStats();
     }
-    @PostMapping("/complete-profile")
-    public ResponseEntity<?> completeProfile(@ModelAttribute ProfileRequest request,
-                                             @RequestPart(value = "image", required = false) MultipartFile image,
-                                             @RequestPart(value = "certificate", required = false) MultipartFile certificate) {
 
-        User user = userService.completeProfile(request, image, certificate);
 
-        CurrentUserDTO dto = mapToDTO(user);
-        return ResponseEntity.ok(dto);
-    }
+    
 }

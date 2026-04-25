@@ -23,7 +23,6 @@ public class Student {
     @JoinColumn(name = "id")
     User user;
 
-
     Float height;
     Float weight;
     Float bmi;

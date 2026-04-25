@@ -30,4 +30,3 @@ public interface SymptomEntryRepository extends JpaRepository<SymptomEntry, Long
   List<SymptomEntry> findByProfileIdAndLogDateBetweenOrderByLogDateAsc(Long profileId, LocalDate start, LocalDate end);
 
 }
-
