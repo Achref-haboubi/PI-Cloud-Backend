@@ -3,6 +3,9 @@ package tn.esprit.peakwell.controller;
 import tn.esprit.peakwell.dto.HealthGoalRequest;
 import tn.esprit.peakwell.dto.HealthGoalResponse;
 import tn.esprit.peakwell.dto.HealthGoalResponse.MilestoneResponse;
+import tn.esprit.peakwell.entities.User;
+import tn.esprit.peakwell.repositories.UserRepository;
+import tn.esprit.peakwell.services.AuthService;
 import tn.esprit.peakwell.services.HealthGoalService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,8 @@ import java.util.Map;
 public class HealthGoalController {
 
   private final HealthGoalService goalService;
+  private final AuthService authService;
+  private final UserRepository userRepository;
 
   @GetMapping
   public ResponseEntity<List<HealthGoalResponse>> getAll() {
@@ -70,8 +75,16 @@ public class HealthGoalController {
   @PostMapping("/profile/{profileId}")
   public ResponseEntity<HealthGoalResponse> createForProfile(
           @PathVariable Long profileId,
-          @RequestBody HealthGoalRequest request,
-          @RequestParam(defaultValue = "Nutritionist") String dietitianName) {
+          @RequestBody HealthGoalRequest request) {
+    String dietitianName = "Nutritionist";
+    try {
+      String keycloakId = authService.getCurrentUserId();
+      User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
+      if (user != null) {
+        String name = (user.getFirstName() + " " + user.getLastName()).trim();
+        if (!name.isBlank()) dietitianName = name;
+      }
+    } catch (Exception ignored) {}
     return ResponseEntity.ok(goalService.createGoalForProfile(profileId, request, dietitianName));
   }
 

@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface DietitianRepository extends JpaRepository<Dietitian, Long> {
     Optional<Dietitian> findFirstBy();
+    Optional<Dietitian> findByUserId(Long userId);
 
 }

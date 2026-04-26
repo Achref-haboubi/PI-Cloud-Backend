@@ -8,6 +8,7 @@ public interface HealthGoalRepository extends JpaRepository<HealthGoal, Long> {
   List<HealthGoal> findAllByOrderByCreatedAtDesc();
   List<HealthGoal> findByActiveTrueOrderByCreatedAtDesc();
   List<HealthGoal> findByProfileIdOrderByCreatedAtDesc(Long profileId);
+  List<HealthGoal> findByActiveTrueAndProfileIdOrderByCreatedAtDesc(Long profileId);
   List<HealthGoal> findByMetric(String metric);
   List<HealthGoal> findAllByProfileIdOrderByCreatedAtDesc(Long profileId);
 

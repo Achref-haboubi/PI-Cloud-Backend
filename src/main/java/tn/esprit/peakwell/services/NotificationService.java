@@ -368,6 +368,26 @@ public class NotificationService {
     notifRepo.save(n);
   }
 
+  /** Called when a patient pauses a goal — notifies their assigned dietitian. */
+  @Transactional
+  public void notifyGoalPaused(Dietitian dietitian, String patientName, String metric, String reason) {
+    String display = metric.substring(0, 1).toUpperCase()
+            + metric.substring(1).replaceAll("([A-Z])", " $1");
+    String reasonPart = (reason != null && !reason.isBlank()) ? " Reason: \"" + reason + "\"." : "";
+    Notification n = Notification.builder()
+            .dietitian(dietitian)
+            .type("GOAL_UPDATE")
+            .severity("MEDIUM")
+            .title("⏸️ Goal Paused: " + patientName)
+            .message(patientName + " has paused their " + display + " goal." + reasonPart
+                    + " You may want to check in with them.")
+            .icon("⏸️")
+            .actionUrl("/nutritionist/clients")
+            .actionLabel("View Client")
+            .build();
+    notifRepo.save(n);
+  }
+
   /** Called when a student achieves a goal assigned by this dietitian. */
   @Transactional
   public void notifyGoalAchieved(Dietitian dietitian, String patientName, String metric) {
@@ -384,6 +404,37 @@ public class NotificationService {
             .actionLabel("View Client")
             .build();
     notifRepo.save(n);
+  }
+
+  // ── Instant dietitian alert when a patient's biometrics are saved ──
+
+  @Transactional
+  public void checkAndNotifyDietitianForProfile(Long profileId) {
+    MedicalProfile p = profileRepo.findById(profileId).orElse(null);
+    if (p == null || p.getAssignedDietitian() == null) return;
+
+    Dietitian d = p.getAssignedDietitian();
+    List<BiometricEntry> entries = biometricRepo.findAllByProfileIdOrderByRecordedAtAsc(profileId);
+    if (entries.isEmpty()) return;
+
+    BiometricEntry latest = entries.get(entries.size() - 1);
+    String name = ((p.getFirstName() != null ? p.getFirstName() : "") +
+            " " + (p.getLastName() != null ? p.getLastName() : "")).trim();
+    double score = computeHealthScore(p, latest, entries);
+
+    if (score < 35) {
+      createForDietitianIfNotExists(d, "CRITICAL_RISK", "CRITICAL",
+              "🚨 Critical Health Alert: " + name,
+              name + "'s health score has dropped to a critical level (" + (int) score + "/100). " +
+                      "Their biometrics indicate serious risk — immediate review is recommended.",
+              "🚨", "/nutritionist/clients", "View Client");
+    } else if (score < 50) {
+      createForDietitianIfNotExists(d, "HEALTH_ALERT", "HIGH",
+              "⚠️ " + name + "'s Health Is Declining",
+              name + "'s health score is " + (int) score + "/100 (High risk). " +
+                      "Review their recent biometrics and consider adjusting their nutrition plan.",
+              "⚠️", "/nutritionist/clients", "View Client");
+    }
   }
 
   // ── Dietitian scheduled scan — upcoming consultations ──
@@ -416,21 +467,39 @@ public class NotificationService {
                 "📅", "/nutritionist/schedule", "View Schedule");
       }
 
-      // Clients with no biometric entries in 14+ days
+      // Clients health monitoring — inactivity + health risk
       List<MedicalProfile> clients = profileRepo.findByDietitianScope(d.getId());
       for (MedicalProfile p : clients) {
         List<BiometricEntry> entries = biometricRepo.findAllByProfileIdOrderByRecordedAtAsc(p.getId());
         if (entries.isEmpty()) continue;
-        long daysSince = ChronoUnit.DAYS.between(
-                entries.get(entries.size() - 1).getRecordedAt(), LocalDateTime.now());
+        BiometricEntry latest = entries.get(entries.size() - 1);
+        String name = ((p.getFirstName() != null ? p.getFirstName() : "") +
+                " " + (p.getLastName() != null ? p.getLastName() : "")).trim();
+
+        // Inactivity alert
+        long daysSince = ChronoUnit.DAYS.between(latest.getRecordedAt(), LocalDateTime.now());
         if (daysSince >= 14) {
-          String name = (p.getFirstName() != null ? p.getFirstName() : "") +
-                  " " + (p.getLastName() != null ? p.getLastName() : "");
           createForDietitianIfNotExists(d, "SYSTEM", "LOW",
-                  "📊 " + name.trim() + " Hasn't Logged Data",
-                  name.trim() + " hasn't logged any biometric data in " + daysSince +
+                  "📊 " + name + " Hasn't Logged Data",
+                  name + " hasn't logged any biometric data in " + daysSince +
                           " days. Consider reaching out to keep them on track.",
                   "📊", "/nutritionist/clients", "View Client");
+        }
+
+        // Health score risk alerts
+        double score = computeHealthScore(p, latest, entries);
+        if (score < 35) {
+          createForDietitianIfNotExists(d, "CRITICAL_RISK", "CRITICAL",
+                  "🚨 Critical Health Alert: " + name,
+                  name + "'s health score has dropped to a critical level (" + (int) score + "/100). " +
+                          "Their biometrics indicate serious risk — immediate review is recommended.",
+                  "🚨", "/nutritionist/clients", "View Client");
+        } else if (score < 50) {
+          createForDietitianIfNotExists(d, "HEALTH_ALERT", "HIGH",
+                  "⚠️ " + name + "'s Health Is Declining",
+                  name + "'s health score is " + (int) score + "/100 (High risk). " +
+                          "Review their recent biometrics and consider adjusting their nutrition plan.",
+                  "⚠️", "/nutritionist/clients", "View Client");
         }
       }
     }

@@ -274,9 +274,20 @@ public class ConsultationController {
       m.put("email",     s.getUser() != null ? s.getUser().getEmail()     : "");
       m.put("imageUrl",  s.getUser() != null ? s.getUser().getImgUrl()    : null);
       m.put("enabled",   s.getUser() != null ? s.getUser().isEnabled()    : true);
-      m.put("goal",      s.getGoal());
-      m.put("weight",    s.getWeight());
-      m.put("bmi",       s.getBmi());
+      m.put("goal",             s.getGoal());
+      m.put("weight",           s.getWeight());
+      m.put("bmi",              s.getBmi());
+      m.put("activityLevel",    s.getActivityLevel());
+      m.put("profileCompleted", s.getUser() != null && s.getUser().isProfileCompleted());
+      // Calculate age from medical profile dateOfBirth
+      Integer age = null;
+      if (s.getMedicalProfile() != null && s.getMedicalProfile().getDateOfBirth() != null) {
+        try {
+          java.time.LocalDate dob = java.time.LocalDate.parse(s.getMedicalProfile().getDateOfBirth());
+          age = java.time.Period.between(dob, java.time.LocalDate.now()).getYears();
+        } catch (Exception ignored) {}
+      }
+      m.put("age", age);
       return m;
     }).collect(java.util.stream.Collectors.toList());
     return ResponseEntity.ok(result);

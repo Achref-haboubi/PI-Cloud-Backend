@@ -37,6 +37,7 @@ public class ConsultationService {
   private final AutoApprovalService autoApprovalService;
   private final UserRepository userRepository;
   private final AuthService authService;
+  private final NotificationService notificationService;
 
   public List<ConsultationResponse> getAll(Long dietitianId) {
     if (dietitianId == null)
@@ -127,6 +128,17 @@ public class ConsultationService {
     // Re-fetch to return the final status after evaluation
     saved = consultRepo.findById(saved.getId()).orElse(saved);
 
+    // Notify the assigned dietitian of the new booking
+    if (saved.getDietitian() != null) {
+      try {
+        String patientName = profile.getFirstName() + " " + profile.getLastName();
+        String date = saved.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("MMM d 'at' HH:mm"));
+        notificationService.notifyNewBooking(saved.getDietitian(), patientName.trim(), date);
+      } catch (Exception ex) {
+        log.warn("Could not send booking notification to dietitian: {}", ex.getMessage());
+      }
+    }
+
     return toResponse(saved);
   }
 
@@ -155,6 +167,18 @@ public class ConsultationService {
     c.setStatus("CANCELLED");
     consultRepo.save(c);
     notifyDietitianOfCancellation(c);
+    // Send in-app notification to dietitian
+    if (c.getDietitian() != null) {
+      try {
+        String patientName = c.getProfile() != null
+                ? (c.getProfile().getFirstName() + " " + c.getProfile().getLastName()).trim()
+                : "A patient";
+        String date = c.getScheduledAt().format(java.time.format.DateTimeFormatter.ofPattern("MMM d 'at' HH:mm"));
+        notificationService.notifyConsultationCancelled(c.getDietitian(), patientName, date);
+      } catch (Exception ex) {
+        log.warn("Could not send cancellation notification to dietitian: {}", ex.getMessage());
+      }
+    }
   }
 
   private void notifyDietitianOfCancellation(Consultation c) {
@@ -398,9 +422,14 @@ public class ConsultationService {
       ratingMap.put("improvements",           r.getImprovements());
     }
 
-    // Patient name
+    // Patient name + image
     String name = c.getProfile() != null
             ? c.getProfile().getFirstName() + " " + c.getProfile().getLastName() : "";
+    String patientImageUrl = null;
+    if (c.getProfile() != null && c.getProfile().getStudent() != null
+            && c.getProfile().getStudent().getUser() != null) {
+      patientImageUrl = c.getProfile().getStudent().getUser().getImgUrl();
+    }
 
     return ConsultationResponse.builder()
             .id(c.getId())
@@ -424,6 +453,7 @@ public class ConsultationService {
             .rating(ratingMap)
             .rejectionReason(c.getRejectionReason())
             .patientName(name)
+            .patientImageUrl(patientImageUrl)
             .reminder24hSent(c.getReminder24hSent())
             .reminder1hSent(c.getReminder1hSent())
             .createdAt(c.getCreatedAt().toString())

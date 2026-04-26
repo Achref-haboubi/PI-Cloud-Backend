@@ -37,6 +37,7 @@ public class ConsultationResponse {
 
   private String rejectionReason;
   private String patientName;
+  private String patientImageUrl;
   private Boolean reminder24hSent;
   private Boolean reminder1hSent;
   private String createdAt;

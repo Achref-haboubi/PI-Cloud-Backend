@@ -20,6 +20,9 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
   List<Consultation> findByDietitianIdAndStatusNotOrderByScheduledAtDesc(Long dietitianId, String status);
   List<Consultation> findByDietitianIdAndStatusOrderByScheduledAtAsc(Long dietitianId, String status);
 
+  /** True if the patient has at least one non-cancelled consultation with this dietitian */
+  boolean existsByProfileIdAndDietitianIdAndStatusNot(Long profileId, Long dietitianId, String status);
+
   /** Distinct students who have at least one non-cancelled consultation with this dietitian */
   @Query("""
       SELECT DISTINCT c.profile.student FROM Consultation c

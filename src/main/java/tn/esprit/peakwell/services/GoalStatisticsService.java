@@ -2,16 +2,19 @@ package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import tn.esprit.peakwell.entities.HealthGoal;
 import tn.esprit.peakwell.entities.BiometricEntry;
-import tn.esprit.peakwell.repositories.HealthGoalRepository;
+import tn.esprit.peakwell.entities.HealthGoal;
+import tn.esprit.peakwell.entities.MedicalProfile;
+import tn.esprit.peakwell.entities.User;
 import tn.esprit.peakwell.repositories.BiometricEntryRepository;
+import tn.esprit.peakwell.repositories.HealthGoalRepository;
+import tn.esprit.peakwell.repositories.MedicalProfileRepository;
+import tn.esprit.peakwell.repositories.UserRepository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -19,16 +22,29 @@ public class GoalStatisticsService {
 
   private final HealthGoalRepository goalRepo;
   private final BiometricEntryRepository biometricRepo;
+  private final MedicalProfileRepository profileRepo;
+  private final UserRepository userRepository;
+  private final AuthService authService;
 
-  private static final Long PROFILE_ID = 1L;
+  private Long resolveCurrentProfileId() {
+    try {
+      String keycloakId = authService.getCurrentUserId();
+      User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
+      if (user == null) return null;
+      return profileRepo.findByStudentId(user.getId())
+              .map(MedicalProfile::getId)
+              .orElse(null);
+    } catch (Exception e) {
+      return null;
+    }
+  }
 
-  /**
-   * Full statistics dashboard data
-   */
   public Map<String, Object> getStatistics() {
-    List<HealthGoal> allGoals = goalRepo.findAllByOrderByCreatedAtDesc();
-    List<BiometricEntry> entries = biometricRepo.findAllByOrderByRecordedAtAsc();
-    BiometricEntry latest = entries.isEmpty() ? null : entries.get(entries.size() - 1);
+    Long profileId = resolveCurrentProfileId();
+    if (profileId == null) return Map.of("totalGoals", 0);
+
+    List<HealthGoal> allGoals = goalRepo.findAllByProfileIdOrderByCreatedAtDesc(profileId);
+    BiometricEntry latest = biometricRepo.findTopByProfileIdOrderByRecordedAtDesc(profileId).orElse(null);
 
     Map<String, Object> stats = new LinkedHashMap<>();
 
@@ -47,20 +63,20 @@ public class GoalStatisticsService {
 
     // ── Average Time to Achieve (days) ──────────
     List<Long> achieveTimes = allGoals.stream()
-      .filter(this::isAchieved)
-      .filter(g -> g.getAchievedDate() != null && g.getCreatedAt() != null)
-      .map(g -> ChronoUnit.DAYS.between(g.getCreatedAt(), g.getAchievedDate().atStartOfDay()))
-      .filter(d -> d > 0)
-      .collect(Collectors.toList());
+            .filter(this::isAchieved)
+            .filter(g -> g.getAchievedDate() != null && g.getCreatedAt() != null)
+            .map(g -> ChronoUnit.DAYS.between(g.getCreatedAt(), g.getAchievedDate().atStartOfDay()))
+            .filter(d -> d > 0)
+            .collect(Collectors.toList());
     double avgDaysToAchieve = achieveTimes.isEmpty() ? 0 :
-      Math.round(achieveTimes.stream().mapToLong(Long::longValue).average().orElse(0) * 10.0) / 10.0;
+            Math.round(achieveTimes.stream().mapToLong(Long::longValue).average().orElse(0) * 10.0) / 10.0;
     stats.put("avgDaysToAchieve", avgDaysToAchieve);
     stats.put("fastestAchieve", achieveTimes.isEmpty() ? 0 : Collections.min(achieveTimes));
     stats.put("slowestAchieve", achieveTimes.isEmpty() ? 0 : Collections.max(achieveTimes));
 
     // ── Per-Metric Breakdown ────────────────────
     Map<String, List<HealthGoal>> byMetric = allGoals.stream()
-      .collect(Collectors.groupingBy(g -> g.getMetric() != null ? g.getMetric() : "unknown"));
+            .collect(Collectors.groupingBy(g -> g.getMetric() != null ? g.getMetric() : "unknown"));
 
     List<Map<String, Object>> metricStats = new ArrayList<>();
     for (Map.Entry<String, List<HealthGoal>> entry : byMetric.entrySet()) {
@@ -70,7 +86,6 @@ public class GoalStatisticsService {
       long metricTotal = goals.size();
       double metricRate = metricTotal > 0 ? Math.round(metricAchieved * 1000.0 / metricTotal) / 10.0 : 0;
 
-      // Current value for this metric
       Double currentValue = getCurrentValue(metric, latest);
 
       Map<String, Object> ms = new LinkedHashMap<>();
@@ -83,21 +98,19 @@ public class GoalStatisticsService {
       ms.put("completionRate", metricRate);
       ms.put("currentValue", currentValue);
 
-      // Average progress of active goals for this metric
       List<Double> progresses = goals.stream()
-        .filter(this::isActive)
-        .map(g -> calculateProgress(g, currentValue))
-        .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+              .filter(this::isActive)
+              .map(g -> calculateProgress(g, currentValue))
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
       ms.put("avgProgress", progresses.isEmpty() ? 0 :
-        Math.round(progresses.stream().mapToDouble(Double::doubleValue).average().orElse(0) * 10.0) / 10.0);
+              Math.round(progresses.stream().mapToDouble(Double::doubleValue).average().orElse(0) * 10.0) / 10.0);
 
       metricStats.add(ms);
     }
-    // Sort by completion rate descending
     metricStats.sort((a, b) -> Double.compare(
-      (double) b.getOrDefault("completionRate", 0.0),
-      (double) a.getOrDefault("completionRate", 0.0)));
+            (double) b.getOrDefault("completionRate", 0.0),
+            (double) a.getOrDefault("completionRate", 0.0)));
     stats.put("metricBreakdown", metricStats);
 
     // ── Best & Worst Metric ─────────────────────
@@ -106,97 +119,94 @@ public class GoalStatisticsService {
       stats.put("worstMetric", metricStats.get(metricStats.size() - 1));
     }
 
-    // ── Monthly Trend (goals created & achieved per month) ──
-    Map<String, int[]> monthlyMap = new TreeMap<>(); // [created, achieved]
+    // ── Monthly Trend ──────────────────────────
+    Map<String, int[]> monthlyMap = new TreeMap<>();
     for (HealthGoal g : allGoals) {
       if (g.getCreatedAt() != null) {
         String key = g.getCreatedAt().getYear() + "-" +
-          String.format("%02d", g.getCreatedAt().getMonthValue());
+                String.format("%02d", g.getCreatedAt().getMonthValue());
         monthlyMap.computeIfAbsent(key, k -> new int[2])[0]++;
       }
       if (isAchieved(g) && g.getAchievedDate() != null) {
         String key = g.getAchievedDate().getYear() + "-" +
-          String.format("%02d", g.getAchievedDate().getMonthValue());
+                String.format("%02d", g.getAchievedDate().getMonthValue());
         monthlyMap.computeIfAbsent(key, k -> new int[2])[1]++;
       }
     }
     List<Map<String, Object>> monthlyTrend = new ArrayList<>();
     for (Map.Entry<String, int[]> e : monthlyMap.entrySet()) {
       monthlyTrend.add(Map.of(
-        "month", e.getKey(),
-        "created", e.getValue()[0],
-        "achieved", e.getValue()[1]
+              "month", e.getKey(),
+              "created", e.getValue()[0],
+              "achieved", e.getValue()[1]
       ));
     }
     stats.put("monthlyTrend", monthlyTrend);
 
     // ── Active Goals with Progress ──────────────
     List<Map<String, Object>> activeGoalDetails = allGoals.stream()
-      .filter(this::isActive)
-      .map(g -> {
-        Map<String, Object> gd = new LinkedHashMap<>();
-        gd.put("id", g.getId());
-        gd.put("metric", g.getMetric());
-        gd.put("icon", getMetricIcon(g.getMetric()));
-        gd.put("direction", g.getDirection());
-        gd.put("startValue", g.getStartValue());
-        gd.put("targetValue", g.getTargetValue());
-        gd.put("unit", g.getUnit());
-        gd.put("deadline", g.getDeadline() != null ? g.getDeadline().toString() : null);
-        gd.put("createdAt", g.getCreatedAt() != null ? g.getCreatedAt().toString() : null);
+            .filter(this::isActive)
+            .map(g -> {
+              Map<String, Object> gd = new LinkedHashMap<>();
+              gd.put("id", g.getId());
+              gd.put("metric", g.getMetric());
+              gd.put("icon", getMetricIcon(g.getMetric()));
+              gd.put("direction", g.getDirection());
+              gd.put("startValue", g.getStartValue());
+              gd.put("targetValue", g.getTargetValue());
+              gd.put("unit", g.getUnit());
+              gd.put("deadline", g.getDeadline() != null ? g.getDeadline().toString() : null);
+              gd.put("createdAt", g.getCreatedAt() != null ? g.getCreatedAt().toString() : null);
 
-        Double current = getCurrentValue(g.getMetric(), latest);
-        gd.put("currentValue", current);
-        gd.put("progress", calculateProgress(g, current));
+              Double current = getCurrentValue(g.getMetric(), latest);
+              gd.put("currentValue", current);
+              gd.put("progress", calculateProgress(g, current));
 
-        // Days remaining
-        if (g.getDeadline() != null) {
-          long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), g.getDeadline());
-          gd.put("daysRemaining", Math.max(0, daysLeft));
-          gd.put("isOverdue", daysLeft < 0);
-          // Total duration
-          if (g.getCreatedAt() != null) {
-            long totalDays = ChronoUnit.DAYS.between(g.getCreatedAt().toLocalDate(), g.getDeadline());
-            gd.put("totalDays", totalDays);
-            gd.put("elapsedPct", totalDays > 0 ?
-              Math.round(Math.min(100, (totalDays - daysLeft) * 100.0 / totalDays) * 10.0) / 10.0 : 100);
-          }
-        }
+              if (g.getDeadline() != null) {
+                long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), g.getDeadline());
+                gd.put("daysRemaining", Math.max(0, daysLeft));
+                gd.put("isOverdue", daysLeft < 0);
+                if (g.getCreatedAt() != null) {
+                  long totalDays = ChronoUnit.DAYS.between(g.getCreatedAt().toLocalDate(), g.getDeadline());
+                  gd.put("totalDays", totalDays);
+                  gd.put("elapsedPct", totalDays > 0 ?
+                          Math.round(Math.min(100, (totalDays - daysLeft) * 100.0 / totalDays) * 10.0) / 10.0 : 100);
+                }
+              }
 
-        // Status label
-        Double progress = calculateProgress(g, current);
-        gd.put("status", getGoalStatus(g, progress));
+              Double progress = calculateProgress(g, getCurrentValue(g.getMetric(), latest));
+              gd.put("status", getGoalStatus(g, progress));
 
-        return gd;
-      })
-      .collect(Collectors.toList());
+              return gd;
+            })
+            .collect(Collectors.toList());
     stats.put("activeGoalDetails", activeGoalDetails);
 
     // ── Achievement History (last 10 achieved) ──
     List<Map<String, Object>> achievementHistory = allGoals.stream()
-      .filter(this::isAchieved)
-      .sorted((a, b) -> {
-        LocalDate da = a.getAchievedDate() != null ? a.getAchievedDate() : LocalDate.MIN;
-        LocalDate db = b.getAchievedDate() != null ? b.getAchievedDate() : LocalDate.MIN;
-        return db.compareTo(da);
-      })
-      .limit(10)
-      .map(g -> {
-        Map<String, Object> ah = new LinkedHashMap<>();
-        ah.put("metric", g.getMetric());
-        ah.put("icon", getMetricIcon(g.getMetric()));
-        ah.put("direction", g.getDirection());
-        ah.put("startValue", g.getStartValue());
-        ah.put("targetValue", g.getTargetValue());
-        ah.put("unit", g.getUnit());
-        ah.put("achievedDate", g.getAchievedDate() != null ? g.getAchievedDate().toString() : null);
-        ah.put("createdAt", g.getCreatedAt() != null ? g.getCreatedAt().toString() : null);
-        if (g.getAchievedDate() != null && g.getCreatedAt() != null) {
-          ah.put("daysToAchieve", ChronoUnit.DAYS.between(g.getCreatedAt(), g.getAchievedDate().atStartOfDay()));
-        }
-        return ah;
-      })
-      .collect(Collectors.toList());
+            .filter(this::isAchieved)
+            .sorted((a, b) -> {
+              LocalDate da = a.getAchievedDate() != null ? a.getAchievedDate() : LocalDate.MIN;
+              LocalDate db = b.getAchievedDate() != null ? b.getAchievedDate() : LocalDate.MIN;
+              return db.compareTo(da);
+            })
+            .limit(10)
+            .map(g -> {
+              Map<String, Object> ah = new LinkedHashMap<>();
+              ah.put("metric", g.getMetric());
+              ah.put("icon", getMetricIcon(g.getMetric()));
+              ah.put("direction", g.getDirection());
+              ah.put("startValue", g.getStartValue());
+              ah.put("targetValue", g.getTargetValue());
+              ah.put("unit", g.getUnit());
+              ah.put("achievedDate", g.getAchievedDate() != null ? g.getAchievedDate().toString() : null);
+              ah.put("createdAt", g.getCreatedAt() != null ? g.getCreatedAt().toString() : null);
+              if (g.getAchievedDate() != null && g.getCreatedAt() != null) {
+                ah.put("daysToAchieve", ChronoUnit.DAYS.between(g.getCreatedAt(), g.getAchievedDate().atStartOfDay()));
+              }
+              return ah;
+            })
+            .collect(Collectors.toList());
     stats.put("achievementHistory", achievementHistory);
 
     return stats;

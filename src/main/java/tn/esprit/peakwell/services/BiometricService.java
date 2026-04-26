@@ -132,6 +132,7 @@ public class BiometricService {
 
         BiometricResponse saved = toResponse(repository.save(entry));
         notificationService.checkAndNotify(profile.getId());
+        notificationService.checkAndNotifyDietitianForProfile(profile.getId());
         return saved;
     }
 

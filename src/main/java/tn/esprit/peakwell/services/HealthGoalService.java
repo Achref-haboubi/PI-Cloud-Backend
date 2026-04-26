@@ -1,19 +1,15 @@
 package tn.esprit.peakwell.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.peakwell.dto.HealthGoalRequest;
 import tn.esprit.peakwell.dto.HealthGoalResponse;
 import tn.esprit.peakwell.dto.HealthGoalResponse.MilestoneResponse;
-import tn.esprit.peakwell.entities.BiometricEntry;
-import tn.esprit.peakwell.entities.GoalMilestone;
-import tn.esprit.peakwell.entities.HealthGoal;
-import tn.esprit.peakwell.entities.MedicalProfile;
-import tn.esprit.peakwell.repositories.BiometricEntryRepository;
-import tn.esprit.peakwell.repositories.GoalMilestoneRepository;
-import tn.esprit.peakwell.repositories.HealthGoalRepository;
-import tn.esprit.peakwell.repositories.MedicalProfileRepository;
+import tn.esprit.peakwell.entities.*;
+import tn.esprit.peakwell.repositories.*;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -27,32 +23,71 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HealthGoalService {
 
-  private final HealthGoalRepository goalRepo;
-  private final BiometricEntryRepository biometricRepo;
-  private final MedicalProfileRepository profileRepo;
-  private final GoalMilestoneRepository milestoneRepo;
-  private final NotificationService notificationService;
+  private final HealthGoalRepository      goalRepo;
+  private final BiometricEntryRepository  biometricRepo;
+  private final MedicalProfileRepository  profileRepo;
+  private final GoalMilestoneRepository   milestoneRepo;
+  private final NotificationService       notificationService;
+  private final AuthService               authService;
+  private final UserRepository            userRepository;
+  private final StudentRepository         studentRepository;
+  private final DietitianRepository       dietitianRepository;
+  private final ConsultationRepository    consultationRepo;
 
-  private static final Long PROFILE_ID = 1L; // Placeholder until auth exists
+  // ── Current-user resolution helpers ─────────────
+
+  /** Resolves the medical-profile ID of the authenticated patient. Returns null if not found. */
+  private Long resolveCurrentProfileId() {
+    try {
+      String keycloakId = authService.getCurrentUserId();
+      User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
+      if (user == null) return null;
+      return profileRepo.findByStudentId(user.getId())
+              .map(MedicalProfile::getId)
+              .orElse(null);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /** Resolves the Dietitian entity for the currently authenticated nutritionist. Returns null if not found. */
+  private Dietitian resolveCurrentDietitian() {
+    try {
+      String keycloakId = authService.getCurrentUserId();
+      User user = userRepository.findByKeycloakId(keycloakId).orElse(null);
+      if (user == null) return null;
+      return dietitianRepository.findByUserId(user.getId()).orElse(null);
+    } catch (Exception e) {
+      return null;
+    }
+  }
 
   // ── CRUD ────────────────────────────────────────
 
+  /** Returns only the goals belonging to the currently authenticated patient. */
   public List<HealthGoalResponse> getAllGoals() {
-    List<HealthGoal> goals = goalRepo.findAllByOrderByCreatedAtDesc();
-    // Auto-update milestones based on current biometric data
+    Long profileId = resolveCurrentProfileId();
+    if (profileId == null) return List.of();
+    List<HealthGoal> goals = goalRepo.findAllByProfileIdOrderByCreatedAtDesc(profileId);
     updateAllMilestones(goals);
     return goals.stream().map(this::toResponse).collect(Collectors.toList());
   }
 
+  /** Returns active goals for the currently authenticated patient. */
   public List<HealthGoalResponse> getActiveGoals() {
-    List<HealthGoal> goals = goalRepo.findByActiveTrueOrderByCreatedAtDesc();
+    Long profileId = resolveCurrentProfileId();
+    if (profileId == null) return List.of();
+    List<HealthGoal> goals = goalRepo.findByActiveTrueAndProfileIdOrderByCreatedAtDesc(profileId);
     updateAllMilestones(goals);
     return goals.stream().map(this::toResponse).collect(Collectors.toList());
   }
 
   @Transactional
   public HealthGoalResponse createGoal(HealthGoalRequest request) {
-    MedicalProfile profile = profileRepo.findById(PROFILE_ID).orElse(null);
+    Long profileId = resolveCurrentProfileId();
+    MedicalProfile profile = profileId != null
+            ? profileRepo.findById(profileId).orElse(null)
+            : null;
 
     HealthGoal goal = HealthGoal.builder()
             .profile(profile)
@@ -64,7 +99,6 @@ public class HealthGoalService {
             .deadline(LocalDate.parse(request.getDeadline()))
             .build();
 
-    // Generate milestones (custom or auto)
     List<GoalMilestone> milestones = (request.getCustomMilestones() != null && !request.getCustomMilestones().isEmpty())
             ? request.getCustomMilestones().stream()
             .map(cm -> GoalMilestone.builder().goal(goal).label(cm.getLabel()).targetValue(cm.getTargetValue()).reached(false).build())
@@ -73,10 +107,7 @@ public class HealthGoalService {
     goal.setMilestones(milestones);
 
     HealthGoal saved = goalRepo.save(goal);
-
-    // Check milestones immediately against current data
     updateMilestones(saved);
-
     return toResponse(goalRepo.save(saved));
   }
 
@@ -98,7 +129,16 @@ public class HealthGoalService {
     HealthGoal goal = goalRepo.findById(id).orElseThrow(() -> new RuntimeException("Goal not found"));
     goal.setPaused(true);
     goal.setPauseReason(reason);
-    return toResponse(goalRepo.save(goal));
+    HealthGoal saved = goalRepo.save(goal);
+
+    MedicalProfile profile = saved.getProfile();
+    if (profile != null && profile.getAssignedDietitian() != null) {
+      String patientName = ((profile.getFirstName() != null ? profile.getFirstName() : "")
+              + " " + (profile.getLastName() != null ? profile.getLastName() : "")).trim();
+      notificationService.notifyGoalPaused(profile.getAssignedDietitian(), patientName, saved.getMetric(), reason);
+    }
+
+    return toResponse(saved);
   }
 
   @Transactional
@@ -120,7 +160,19 @@ public class HealthGoalService {
   @Transactional
   public HealthGoalResponse createGoalForProfile(Long profileId, HealthGoalRequest request, String dietitianName) {
     MedicalProfile profile = profileRepo.findById(profileId)
-            .orElseThrow(() -> new RuntimeException("Profile not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+
+    // Validate that the current nutritionist has an active (non-cancelled) consultation with this patient
+    Dietitian dietitian = resolveCurrentDietitian();
+    if (dietitian != null) {
+      boolean hasActiveRelationship = consultationRepo
+              .existsByProfileIdAndDietitianIdAndStatusNot(profileId, dietitian.getId(), "CANCELLED");
+      if (!hasActiveRelationship) {
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "No active consultation relationship with this patient");
+      }
+    }
 
     HealthGoal goal = HealthGoal.builder()
             .profile(profile)
@@ -174,7 +226,7 @@ public class HealthGoalService {
     List<Map<String, Object>> points = entries.stream()
             .filter(e -> !e.getRecordedAt().toLocalDate().isBefore(goalStart))
             .map(e -> {
-              Double val = getCurrentMetricValueFromEntry(goal.getMetric(), e);
+              Double val = getMetricValueFromEntry(goal.getMetric(), e);
               Map<String, Object> point = new LinkedHashMap<>();
               point.put("date", e.getRecordedAt().toLocalDate().format(fmt));
               point.put("value", val);
@@ -192,7 +244,7 @@ public class HealthGoalService {
     return result;
   }
 
-  private Double getCurrentMetricValueFromEntry(String metric, BiometricEntry e) {
+  private Double getMetricValueFromEntry(String metric, BiometricEntry e) {
     return switch (metric) {
       case "weight"     -> e.getWeight();
       case "bmi"        -> e.getBmi();
@@ -238,19 +290,18 @@ public class HealthGoalService {
   }
 
   private boolean updateMilestones(HealthGoal goal) {
-    Double currentValue = getCurrentMetricValue(goal.getMetric());
+    // Use the profile-scoped latest biometric — not the global one
+    Long profileId = goal.getProfile() != null ? goal.getProfile().getId() : null;
+    Double currentValue = getCurrentMetricValue(goal.getMetric(), profileId);
     if (currentValue == null) return false;
 
     boolean changed = false;
     String today = LocalDate.now().format(DateTimeFormatter.ofPattern("MMM d"));
 
     for (GoalMilestone m : goal.getMilestones()) {
-      boolean shouldBeReached;
-      if ("decrease".equals(goal.getDirection())) {
-        shouldBeReached = currentValue <= m.getTargetValue();
-      } else {
-        shouldBeReached = currentValue >= m.getTargetValue();
-      }
+      boolean shouldBeReached = "decrease".equals(goal.getDirection())
+              ? currentValue <= m.getTargetValue()
+              : currentValue >= m.getTargetValue();
 
       if (shouldBeReached && !m.getReached()) {
         m.setReached(true);
@@ -259,20 +310,17 @@ public class HealthGoalService {
       }
     }
 
-    // Check if goal is fully achieved
     boolean allReached = goal.getMilestones().stream().allMatch(GoalMilestone::getReached);
     if (allReached && !goal.getAchieved()) {
       goal.setAchieved(true);
       goal.setAchievedDate(LocalDate.now());
       changed = true;
-      // Notify the assigning dietitian if applicable
       if (Boolean.TRUE.equals(goal.getAssignedByDietitian()) && goal.getProfile() != null) {
         MedicalProfile p = goal.getProfile();
-        String patientName = (p.getFirstName() != null ? p.getFirstName() : "")
-                + " " + (p.getLastName() != null ? p.getLastName() : "");
-        // Find the dietitian by name from the profile's assigned dietitian
+        String patientName = ((p.getFirstName() != null ? p.getFirstName() : "")
+                + " " + (p.getLastName() != null ? p.getLastName() : "")).trim();
         if (p.getAssignedDietitian() != null) {
-          notificationService.notifyGoalAchieved(p.getAssignedDietitian(), patientName.trim(), goal.getMetric());
+          notificationService.notifyGoalAchieved(p.getAssignedDietitian(), patientName, goal.getMetric());
         }
       }
     }
@@ -280,25 +328,19 @@ public class HealthGoalService {
     return changed;
   }
 
-  private Double getCurrentMetricValue(String metric) {
-    return biometricRepo.findTopByOrderByRecordedAtDesc()
-            .map(entry -> {
-              switch (metric) {
-                case "weight":     return entry.getWeight();
-                case "bmi":        return entry.getBmi();
-                case "bodyFat":    return entry.getBodyFat();
-                case "muscleMass": return entry.getMuscleMass();
-                case "systolic":   return entry.getSystolic() != null ? entry.getSystolic().doubleValue() : null;
-                case "glucose":    return entry.getGlucose();
-                default:           return null;
-              }
-            }).orElse(null);
+  /** Returns the latest metric value scoped to the given profile. */
+  private Double getCurrentMetricValue(String metric, Long profileId) {
+    if (profileId == null) return null;
+    return biometricRepo.findTopByProfileIdOrderByRecordedAtDesc(profileId)
+            .map(entry -> getMetricValueFromEntry(metric, entry))
+            .orElse(null);
   }
 
   // ── Mapper ──────────────────────────────────────
 
   private HealthGoalResponse toResponse(HealthGoal goal) {
-    Double currentValue = getCurrentMetricValue(goal.getMetric());
+    Long profileId = goal.getProfile() != null ? goal.getProfile().getId() : null;
+    Double currentValue = getCurrentMetricValue(goal.getMetric(), profileId);
 
     return HealthGoalResponse.builder()
             .id(goal.getId())
@@ -316,7 +358,8 @@ public class HealthGoalService {
             .pauseReason(goal.getPauseReason())
             .assignedByDietitian(goal.getAssignedByDietitian())
             .assignedByDietitianName(goal.getAssignedByDietitianName())
-            .milestones(goal.getMilestones().stream()
+            .milestones(goal.getMilestones() != null
+                    ? goal.getMilestones().stream()
                     .map(m -> MilestoneResponse.builder()
                             .id(m.getId())
                             .label(m.getLabel())
@@ -325,7 +368,8 @@ public class HealthGoalService {
                             .reachedDate(m.getReachedDate())
                             .note(m.getNote())
                             .build())
-                    .collect(Collectors.toList()))
+                    .collect(Collectors.toList())
+                    : List.of())
             .build();
   }
 }
