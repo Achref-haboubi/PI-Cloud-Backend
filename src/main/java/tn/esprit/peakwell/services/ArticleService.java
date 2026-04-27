@@ -46,10 +46,13 @@ public class ArticleService {
         String currentUserId = currentUserService.getCurrentUserId();
         article.setOwnerId(currentUserId);
 
+        // ✅ Récupère automatiquement le username depuis CurrentUserService
+        String currentUsername = currentUserService.getCurrentUsername();
+        article.setAuthor(currentUsername);
 
-        // If author field is empty, set from keycloak username
-        if (article.getAuthor() == null || article.getAuthor().isBlank()) {
-            article.setAuthor(currentUserService.getCurrentUsername());
+        // Validate content is not empty after sanitization
+        if (article.getContent().trim().isEmpty()) {
+            throw new IllegalArgumentException("Content cannot be empty or contain only HTML tags");
         }
 
         // 1️⃣ SAVE FIRST
@@ -96,14 +99,14 @@ public class ArticleService {
             throw new UnauthorizedException("You can only edit your own articles");
         }
 
-        // 🔥 DEFINE THIS FIRST (FIX)
+        // 🔥 Déterminer si le contenu a changé
         boolean contentChanged =
                 (articleDetails.getTitle() != null && !articleDetails.getTitle().equals(article.getTitle())) ||
                         (articleDetails.getContent() != null && !articleDetails.getContent().equals(article.getContent()));
 
         article.setTitle(articleDetails.getTitle());
         article.setContent(articleDetails.getContent());
-        article.setAuthor(articleDetails.getAuthor());
+        // ❌ author n'est PAS modifié - reste celui existant
 
         if (articleDetails.getImageUrl() != null) {
             article.setImageUrl(articleDetails.getImageUrl());

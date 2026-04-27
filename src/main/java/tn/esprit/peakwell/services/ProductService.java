@@ -1,5 +1,6 @@
 package tn.esprit.peakwell.services;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -14,6 +15,12 @@ import tn.esprit.peakwell.repositories.ProductRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.http.HttpStatus;
+
+import tn.esprit.peakwell.entities.User;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import tn.esprit.peakwell.repositories.UserRepository;
 
 import java.util.List;
 
@@ -216,25 +223,32 @@ public class ProductService {
         product.setImage(fileName);
         productRepository.save(product);
     }
+    @Autowired
+    private UserRepository userRepository;
 
     private void checkAndSendStockAlert(Product product) {
 
-        String email = "achrefhaboubi33@gmail.com";
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+
+        // récupérer les infos depuis le token
+        String keycloakId = jwt.getSubject(); // sub
+        String emailFromToken = jwt.getClaim("email"); // email
+
+        // récupérer le user depuis DB
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String email = user.getEmail();
 
         if (product.getStock() == 0) {
 
-            emailService.sendOutOfStockAlert(
-                    email,
-                    product.getName()
-            );
+            emailService.sendOutOfStockAlert(email, product.getName());
 
         } else if (product.getStock() <= product.getMinStock()) {
 
-            emailService.sendLowStockAlert(
-                    email,
-                    product.getName(),
-                    product.getStock()
-            );
+            emailService.sendLowStockAlert(email, product.getName(), product.getStock());
         }
     }
 

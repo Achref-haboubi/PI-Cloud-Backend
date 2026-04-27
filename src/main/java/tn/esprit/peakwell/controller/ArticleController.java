@@ -27,12 +27,11 @@ public class ArticleController {
         this.articleService = articleService;
     }
 
-    // ✅ CREATE
+    // ✅ CREATE (author est automatiquement récupéré du JWT)
     @PostMapping
     public ResponseEntity<?> createArticle(
             @RequestParam(value = "title") String title,
             @RequestParam(value = "content") String content,
-            @RequestParam(value = "author") String author,
             @RequestParam(value = "embedUrl", required = false) String embedUrl,
             @RequestParam(value = "image", required = false) MultipartFile image) {
 
@@ -52,9 +51,9 @@ public class ArticleController {
             Article article = new Article();
             article.setTitle(title.trim());
             article.setContent(content.trim());
-            article.setAuthor(author != null ? author.trim() : "");
             article.setImageUrl(imageUrl);
             article.setEmbedUrl(embedUrl != null ? embedUrl.trim() : null);
+            // ❌ author n'est PAS défini ici - sera défini dans createArticle()
 
             return ResponseEntity.ok(articleService.createArticle(article));
 
@@ -84,13 +83,12 @@ public class ArticleController {
         }
     }
 
-    // ✅ UPDATE
+    // ✅ UPDATE (author reste inchangé, ni envoyé ni modifié)
     @PutMapping("/{id}")
     public ResponseEntity<?> updateArticle(
             @PathVariable Long id,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "author", required = false) String author,
             @RequestParam(value = "embedUrl", required = false) String embedUrl,
             @RequestParam(value = "image", required = false) MultipartFile image) {
 
@@ -112,7 +110,7 @@ public class ArticleController {
             Article article = new Article();
             article.setTitle(title != null ? title.trim() : existingArticle.getTitle());
             article.setContent(content != null ? content.trim() : existingArticle.getContent());
-            article.setAuthor(author != null ? author.trim() : existingArticle.getAuthor());
+            // ❌ author n'est PAS modifié - reste celui existant
             article.setImageUrl(imageUrl);
             article.setEmbedUrl(embedUrl != null ? embedUrl.trim() : existingArticle.getEmbedUrl());
 
@@ -160,7 +158,7 @@ public class ArticleController {
         return ResponseEntity.ok(articleService.searchArticlesByTitle(title));
     }
 
-    // ✅ SERVE IMAGES - Fixed notFound().body() error
+    // ✅ SERVE IMAGES
     @GetMapping("/images/{filename}")
     public ResponseEntity<?> getImage(@PathVariable String filename) {
         try {
@@ -168,12 +166,10 @@ public class ArticleController {
                 return ResponseEntity.badRequest().body("Filename cannot be empty");
             }
 
-            // Prevent directory traversal
             if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
                 return ResponseEntity.badRequest().body("Invalid filename");
             }
 
-            // Prevent treating URLs or UUIDs without extensions as image files
             if (!filename.contains(".")) {
                 return ResponseEntity.badRequest().body("Invalid image filename - missing extension");
             }
@@ -187,12 +183,10 @@ public class ArticleController {
                         .body(resource);
             }
 
-            // ✅ Fix: Use status(404).body() instead of notFound().body()
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Image not found: " + filename);
 
         } catch (IOException e) {
-            // ✅ Fix: Use status(404).body() instead of notFound().body()
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Image not found: " + filename);
         } catch (Exception e) {

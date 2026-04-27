@@ -8,6 +8,7 @@ import tn.esprit.peakwell.services.CommentService;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.Map;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -22,13 +23,13 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    // ✅ ADD COMMENT
+    // ✅ ADD COMMENT (author automatique)
     @PostMapping("/article/{articleId}")
     public Comment addComment(@PathVariable Long articleId, @Valid @RequestBody CommentDTO commentDTO) {
         return commentService.addComment(articleId, commentDTO);
     }
 
-    // ✅ GET ALL COMMENTS OF AN ARTICLE → DTO
+    // ✅ GET ALL COMMENTS OF AN ARTICLE
     @GetMapping("/article/{articleId}")
     public List<CommentDTO> getCommentsByArticle(@PathVariable Long articleId) {
         return commentService.getCommentsByArticle(articleId);
@@ -40,7 +41,7 @@ public class CommentController {
         commentService.deleteComment(id);
     }
 
-    // ✅ ADD REPLY
+    // ✅ ADD REPLY (author automatique)
     @PostMapping("/{articleId}/reply/{parentCommentId}")
     public ResponseEntity<CommentDTO> addReply(
             @PathVariable Long articleId,
@@ -63,4 +64,3 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
 }
-

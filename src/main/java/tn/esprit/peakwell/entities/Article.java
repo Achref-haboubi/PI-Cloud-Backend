@@ -51,6 +51,9 @@ public class Article {
     @JsonManagedReference
     private List<Attachment> attachments;
 
+    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SavedArticle> savedArticles;
+
     @Column(nullable = true)
     private String embedUrl;
 

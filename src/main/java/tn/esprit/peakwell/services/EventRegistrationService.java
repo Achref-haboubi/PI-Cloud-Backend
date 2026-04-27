@@ -12,7 +12,7 @@ import tn.esprit.peakwell.repositories.EventRegistrationRepository;
 import tn.esprit.peakwell.repositories.SportEventRepository;
 import tn.esprit.peakwell.repositories.StudentRepository;
 import tn.esprit.peakwell.repositories.UserRepository;
-
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,19 +26,24 @@ public class EventRegistrationService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final EmailService emailService;
+    private final QRCodeService qrCodeService;
+    @Value("${app.public-url}")
+    private String publicUrl;
 
     public EventRegistrationService(EventRegistrationRepository registrationRepository,
                                     SportEventRepository sportEventRepository,
                                     AuthService authService,
                                     UserRepository userRepository,
                                     StudentRepository studentRepository,
-                                    EmailService emailService) {
+                                    EmailService emailService,
+                                    QRCodeService qrCodeService)  {
         this.registrationRepository = registrationRepository;
         this.sportEventRepository = sportEventRepository;
         this.authService = authService;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.emailService = emailService;
+        this.qrCodeService = qrCodeService;
     }
 
     private void syncExpiredEventsAndRegistrations() {
@@ -181,9 +186,48 @@ public class EventRegistrationService {
         event.updateStatusBasedOnCapacity();
         sportEventRepository.save(event);
 
-        return registrationRepository.save(registration);
-    }
+        // 🔥 SAVE REGISTRATION
+        EventRegistration saved = registrationRepository.save(registration);
 
+        // 🔥 QR CODE + EMAIL
+        try {
+            User user = student.getUser();
+
+            String studentName = user.getFirstName();
+            String eventTitle = event.getTitle();
+            String date = event.getEventDate().toString();
+/*
+            //  TEXTE DU QR
+            String qrText = "🎟️ PeakWell Ticket\n"
+                    + "Name: " + studentName + "\n"
+                    + "Event: " + eventTitle + "\n"
+                    + "Date: " + date;
+
+            // GENERATE QR
+            byte[] qrImage = qrCodeService.generateQRCode(qrText);
+
+*/
+            String ticketUrl = publicUrl + "/api/registrations/ticket/" + saved.getId();
+
+            byte[] qrImage = qrCodeService.generateQRCode(ticketUrl);
+
+
+
+            // 👉 SEND EMAIL
+            emailService.sendEventTicketEmail(
+                    user.getEmail(),
+                    studentName,
+                    eventTitle,
+                    date,
+                    qrImage
+            );
+
+        } catch (Exception e) {
+            System.out.println("QR/email error: " + e.getMessage());
+        }
+
+        return saved;
+    }
     public EventRegistration updateRegistrationStatus(Long id, RegistrationStatus newStatus) {
         syncExpiredEventsAndRegistrations();
 
@@ -259,7 +303,7 @@ public class EventRegistrationService {
         }
 
         registrationRepository.delete(registration);
-
+//--wl
         if (counted) {
             registrationRepository.findFirstByEventIdAndStatusOrderByRegistrationDateAsc(
                     event.getId(),
@@ -276,4 +320,7 @@ public class EventRegistrationService {
         event.updateStatusBasedOnCapacity();
         sportEventRepository.save(event);
     }
+
+
+
 }

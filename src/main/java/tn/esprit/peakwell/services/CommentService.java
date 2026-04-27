@@ -61,7 +61,8 @@ public class CommentService {
 
         Comment comment = new Comment();
         comment.setContent(commentDTO.getContent());
-        comment.setAuthor(commentDTO.getAuthor());
+        // ✅ Author récupéré depuis Keycloak/JWT
+        comment.setAuthor(currentUserService.getCurrentUsername());
         comment.setOwnerId(currentUserService.getCurrentUserId());
         comment.setArticle(article);
         comment.setUpvotes(0);
@@ -104,7 +105,8 @@ public class CommentService {
 
         Comment reply = new Comment();
         reply.setContent(dto.getContent());
-        reply.setAuthor(dto.getAuthor());
+        // ✅ Author récupéré depuis Keycloak/JWT
+        reply.setAuthor(currentUserService.getCurrentUsername());
         reply.setOwnerId(currentUserService.getCurrentUserId());
         reply.setArticle(article);
         reply.setParentComment(parent);
