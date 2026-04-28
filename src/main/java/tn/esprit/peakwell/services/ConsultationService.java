@@ -433,7 +433,7 @@ public class ConsultationService {
 
     return ConsultationResponse.builder()
             .id(c.getId())
-            .scheduledAt(c.getScheduledAt().toString())
+            .scheduledAt(c.getScheduledAt() != null ? c.getScheduledAt().toString() : null)
             .durationMinutes(c.getDurationMinutes())
             .status(c.getStatus())
             .doctorName(c.getDoctorName())

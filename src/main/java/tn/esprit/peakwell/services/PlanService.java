@@ -1,5 +1,7 @@
 package tn.esprit.peakwell.services;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import tn.esprit.peakwell.dto.DailyPlanDTO;
 import tn.esprit.peakwell.entities.*;
 import tn.esprit.peakwell.repositories.*;
@@ -19,13 +21,22 @@ public class PlanService {
     @Autowired private StudentRepository studentRepository;
     @Autowired private MealRepository mealRepository;
     @Autowired private DailyPlanRepository dailyPlanRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    private static final List<String> USER_ALLERGIES = List.of("EGGS");
+    @Autowired
+    private MedicalProfileRepository medicalProfileRepository;
+
 
     private List<String> getCurrentAllergies(Student student) {
 
-        return USER_ALLERGIES;
-        // return student.getAllergies();
+        if (student == null || student.getId() == null) {
+            return Collections.emptyList();
+        }
+
+        return medicalProfileRepository.findByStudentId(student.getId())
+                .map(MedicalProfile::getAllergies)
+                .orElse(Collections.emptyList());
     }
 
 
