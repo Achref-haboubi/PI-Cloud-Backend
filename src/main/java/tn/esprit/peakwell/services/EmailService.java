@@ -566,44 +566,6 @@ public class EmailService implements IEmailService {
         send(to, subject, body);
     }
 
-    @Async
-    public void sendEventTicketEmail(String to, String studentName, String eventTitle, String date, byte[] qrImage) {
-
-        String subject = "🎟️ Your Event Ticket — PeakWell";
-
-        String body = template(
-                studentName,
-                "Your Ticket is Ready!",
-                "You are successfully registered for <strong>" + eventTitle + "</strong>.<br><br>" +
-                        "Event date: <strong>" + date + "</strong><br><br>" +
-                        "Please present this QR code at the event.<br><br>" +
-                        "<div style='text-align:center;margin-top:20px;'>" +
-                        "<img src='cid:qrCode' width='200' style='border:8px solid #f5f1ed;border-radius:16px;'/>" +
-                        "<p style='color:#8a7e78;font-size:12px;margin-top:10px;'>Scan this QR code to view your ticket details.</p>" +
-                        "</div>",
-                "#4CAF50",
-                "🎟️ Event Ticket"
-        );
-
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(from);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(body, true);
-
-            helper.addInline("qrCode", new ByteArrayResource(qrImage), "image/png");
-
-            mailSender.send(message);
-
-            log.info("Event ticket email with QR sent to {}", to);
-
-        } catch (Exception e) {
-            log.error("Error sending QR event ticket email to {}: {}", to, e.getMessage());
-        }
     }
-}
 
 

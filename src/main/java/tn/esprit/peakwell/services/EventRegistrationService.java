@@ -186,45 +186,11 @@ public class EventRegistrationService {
         event.updateStatusBasedOnCapacity();
         sportEventRepository.save(event);
 
-        // 🔥 SAVE REGISTRATION
+        // save regisration
         EventRegistration saved = registrationRepository.save(registration);
 
-        // 🔥 QR CODE + EMAIL
-        try {
-            User user = student.getUser();
+        // mta3 code QR w email
 
-            String studentName = user.getFirstName();
-            String eventTitle = event.getTitle();
-            String date = event.getEventDate().toString();
-/*
-            //  TEXTE DU QR
-            String qrText = "🎟️ PeakWell Ticket\n"
-                    + "Name: " + studentName + "\n"
-                    + "Event: " + eventTitle + "\n"
-                    + "Date: " + date;
-
-            // GENERATE QR
-            byte[] qrImage = qrCodeService.generateQRCode(qrText);
-
-*/
-            String ticketUrl = publicUrl + "/api/registrations/ticket/" + saved.getId();
-
-            byte[] qrImage = qrCodeService.generateQRCode(ticketUrl);
-
-
-
-            // 👉 SEND EMAIL
-            emailService.sendEventTicketEmail(
-                    user.getEmail(),
-                    studentName,
-                    eventTitle,
-                    date,
-                    qrImage
-            );
-
-        } catch (Exception e) {
-            System.out.println("QR/email error: " + e.getMessage());
-        }
 
         return saved;
     }

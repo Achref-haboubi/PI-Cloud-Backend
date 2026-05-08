@@ -44,7 +44,7 @@ public class MenuScheduler {
     }
 
     // AU DÉMARRAGE → semaine actuelle
-    @PostConstruct
+    /*@PostConstruct
     public void generateMenuAtStartup() {
 
         LocalDate currentWeek = LocalDate.now()
@@ -58,5 +58,5 @@ public class MenuScheduler {
         } else {
             System.out.println("Semaine déjà générée");
         }
-    }
+    }*/
 }
